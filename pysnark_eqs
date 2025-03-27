@@ -1,0 +1,6 @@
+# PySNARK equations
+[function] main main
+* = 1 main/one -1 main/onex
+* = 1 main/2 -1 main/o_1
+ *  = 7 main/1 21888242871839275222246405745257275088548364400416034343698204186575808495616 main/2 .
+* = 1 main/3 -1 main/o_2

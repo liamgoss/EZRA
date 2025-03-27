@@ -1,1 +1,7 @@
 venv/ 
+wslvenv/
+"__pycache__/" 
+".vscode/" 
+documents/
+scratch/
+qaptools/

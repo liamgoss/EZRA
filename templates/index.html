@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EZRA</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>EZRA</h1>
+    <nav>
+      <a href="#">About</a>
+      <a href="#">Public Mode</a>
+      <a href="#">Enterprise</a>
+    </nav>
+  </header>
+
+  <main>
+    <h2>Ephemeral Zero-Knowledge Relay Archive</h2>
+    <p>Anonymous. Secure. Temporary.</p>
+    
+    <form id="uploadForm" method="POST" enctype="multipart/form-data" action="/upload">
+      <label for="fileUpload" id="dropZone">
+        <input type="file" name="file" id="fileUpload" hidden>
+        Drag and drop a file here or click to upload
+      </label>
+      <button type="submit">Submit</button>
+    </form>
+
+    <button id="contactEnterprise">Contact Enterprise Sales</button>
+  </main>
+  <script>
+    const fileInput = document.getElementById('fileUpload');
+    const dropZone = document.getElementById('dropZone');
+  
+    fileInput.addEventListener('change', function () {
+      const files = fileInput.files;
+      if (files.length > 0) {
+        const fileList = Array.from(files).map(file => file.name).join(', ');
+        dropZone.textContent = `Selected: ${fileList}`;
+      } else {
+        dropZone.textContent = 'Drag and drop a file here or click to upload';
+      }
+    });
+  
+    // Optional: make clicking the drop zone open the file picker
+    dropZone.addEventListener('click', () => fileInput.click());
+  </script>
+</body>
+</html>

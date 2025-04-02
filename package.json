@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "circomlibjs": "^0.1.7"
+  },
+  "name": "ezra",
+  "version": "1.0.0",
+  "description": "This project demonstrates how to create a Zero-Knowledge Proof in Circom 2 for validating knowledge of a preimage to a Poseidon hash. The proof is non-interactive and compatible with the Groth16 proving system. This setup avoids blockchain dependencies and is fully local.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liamgoss/EZRA.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/liamgoss/EZRA/issues"
+  },
+  "homepage": "https://github.com/liamgoss/EZRA#readme"
+}

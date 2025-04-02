@@ -5,3 +5,14 @@ wslvenv/
 documents/
 scratch/
 qaptools/
+inputs/
+backup/
+# Ignore specific file types ONLY inside working_dir/
+working_dir/*.r1cs
+working_dir/*.wtns
+working_dir/*.json
+working_dir/*.zkey
+working_dir/*.ptau
+working_dir/*.sym
+# Ignore snarkjs-generated WASM/JS
+working_dir/poseidon_preimage_js/

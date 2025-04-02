@@ -97,7 +97,7 @@ Verifier Output:
   - Generates a random secret `s`
   - Computes `h = Poseidon(s)`
   - Encrypts Alice's file using AES-256-GCM
-  - Stores the file as `uploads/h.bin`
+  - Stores the file as `uploads/<h>.bin`
   - Returns `s` to Alice
 
 ### Bob downloads the file:

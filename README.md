@@ -1,169 +1,142 @@
-# Poseidon Preimage ZK Proof Example (Circom 2 + snarkjs)
+# EZRA: Ephemeral Zero-Knowledge Relay Archive
 
-This project demonstrates how to create a Zero-Knowledge Proof in Circom 2 for validating knowledge of a preimage to a Poseidon hash. The proof is non-interactive and compatible with the Groth16 proving system. This setup avoids blockchain dependencies and is fully local.
+A secure, ephemeral file-sharing prototype using **Zero-Knowledge Proofs** and **AES-256-GCM encryption**. Files are uploaded anonymously, stored encrypted, and can only be retrieved by proving knowledge of a secret (preimage) without revealing it.
+
+This project uses **Circom 2.1.6** and **snarkjs** (Groth16) to implement a Poseidon preimage proof, and avoids blockchain dependencies entirely.
+
+---
 
 ## Prerequisites
 
-Install the following tools:
-
-- Rust (for building Circom): https://rustup.rs
-- Node.js and npm
-- snarkjs (`npm install -g snarkjs`)
+Install the following:
+- [Rust](https://rustup.rs) (for building Circom)
+- Node.js + npm
+- `snarkjs`: `npm install  snarkjs`
+- `circomlibjs`: `npm install  circomlibjs`
 - Circom 2.1.6 (build from source): https://github.com/iden3/circom
 
-## Directory Setup
-
-```
-mkdir ~/projects/poseidon-preimage-test
-cd ~/projects/poseidon-preimage-test
-```
-
-## Install circomlib
-
-```
+Inside your project root:
+```bash
 npm init -y
-npm install circomlib
+npm install circomlibjs
+npm install snarkjs
 ```
 
-## Circuit: poseidon_preimage.circom
+---
 
-Create a file named `poseidon_preimage.circom` with the following contents:
+## Project Structure (Simplified)
 
-```circom
-include "circomlib/poseidon.circom";
-
-template PoseidonPreimage() {
-    signal input x;
-    signal output hash;
-
-    component hasher = Poseidon(1);
-    hasher.inputs[0] <== x;
-    hash <== hasher.out;
-}
-
-component main = PoseidonPreimage();
+```bash
+EZRA/
+├── circuits                       # Circom circuit files
+│   ├── poseidon.circom
+│   ├── poseidon_constants.circom
+│   └── poseidon_preimage.circom
+├── scripts
+│   └── build_zk.sh                # Rebuild working_dir from source
+├── working_dir                    # Circuit build output (auto-generated)
+│   ├── poseidon_preimage_js
+│   │   ├── generate_witness.js
+│   │   ├── poseidon_preimage.wasm
+│   │   └── witness_calculator.js
+│   ├── poseidon_preimage.r1cs
+│   ├── poseidon_preimage.sym
+│   ├── poseidon_preimage.zkey
+│   ├── pot12_final.ptau
+│   ├── proof.json
+│   ├── public.json
+│   ├── verification_key.json
+│   └── witness.wtns
+├── app.py                        # Flask App
+├── encryption.py                 # AES-GCM file encryption
+└── zk_utils.py                   # Circom+snarkjs interop
 ```
 
-## Compile the Circuit
+---
 
-This generates the constraint system, the witness generation code, and the symbol file.
+## Build the ZK Circuit
 
+To build all proving/verification artifacts:
+```bash
+./scripts/build_zk.sh
 ```
-circom poseidon_preimage.circom --r1cs --wasm --sym
+This will:
+- Compile the circuit
+- Generate proving and verification keys
+- Download `pot12_final.ptau` if needed
+- Place everything in `working_dir/`
+
+---
+
+## Manual ZK Proof Test
+
+To manually test proof generation:
+```bash
+python3 zk_test.py
 ```
-
-Expected output:
-- poseidon_preimage.r1cs
-- poseidon_preimage.sym
-- poseidon_preimage_js/ (contains .wasm and witness_calculator.js)
-
-## Create Input File
-
-Make an input file to use for witness generation:
-
-`input.json`
-```json
-{
-  "x": "123456789"
-}
-```
-
-## Generate Witness
-
-Option A: Using snarkjs directly (preferred)
-
-```
-snarkjs wtns calculate poseidon_preimage_js/poseidon_preimage.wasm input.json witness.wtns
-```
-
-Option B: Using a custom script with witness_calculator.js (if needed)
-
-```js
-// make_witness.js
-const wc = require('./poseidon_preimage_js/witness_calculator.js');
-const fs = require('fs');
-const wasm = fs.readFileSync('./poseidon_preimage_js/poseidon_preimage.wasm');
-
-async function run() {
-    const input = JSON.parse(fs.readFileSync('./input.json'));
-    const witnessCalculator = await wc(builder => builder(wasm));
-    const witness = await witnessCalculator.calculateWTNSBin(input, 0);
-    fs.writeFileSync('witness.wtns', witness);
-}
-
-run();
-```
-
-Run it:
-
-```
-node make_witness.js
-```
-
-## Trusted Setup (Groth16)
-
-### Step 1: Generate initial Powers of Tau file
-
-```
-snarkjs powersoftau new bn128 12 pot12_0000.ptau -v
-```
-
-### Step 2: Contribute randomness
-
-```
-snarkjs powersoftau contribute pot12_0000.ptau pot12_final.ptau --name="EZRA Dev" -v
-```
-
-### Step 3: Prepare for phase 2
-
-```
-snarkjs powersoftau prepare phase2 pot12_final.ptau pot12_final_prepared.ptau
-```
-
-### Step 4: Generate initial zkey from R1CS and PTAU
-
-```
-snarkjs groth16 setup poseidon_preimage.r1cs pot12_final_prepared.ptau poseidon_preimage_0000.zkey
-```
-
-### Step 5: Contribute to zkey phase 2
-
-```
-snarkjs zkey contribute poseidon_preimage_0000.zkey poseidon_preimage_final.zkey --name="EZRA Phase 2"
-```
-
-### Step 6: Export verification key
-
-```
-snarkjs zkey export verificationkey poseidon_preimage_final.zkey verification_key.json
-```
-
-## Generate and Verify Proof
-
-### Step 1: Generate proof
-
-```
-snarkjs groth16 prove poseidon_preimage_final.zkey witness.wtns proof.json public.json
-```
-
-### Step 2: Verify proof
-
-```
-snarkjs groth16 verify verification_key.json public.json proof.json
-```
+This script will:
+1. Generate a random secret `s`
+2. Compute `h = Poseidon(s)`
+3. Create a ZK proof that you know `s` such that `Poseidon(s) = h`
+4. Verify that proof using `snarkjs`
 
 Expected output:
 ```
-OK
+Secret: 123...
+Commitment: 456...
+Verifier Output:
+ [INFO]  snarkJS: OK!
 ```
+
+---
+
+## Alice & Bob Example
+
+### Alice uploads a file:
+- The EZRA server:
+  - Generates a random secret `s`
+  - Computes `h = Poseidon(s)`
+  - Encrypts Alice's file using AES-256-GCM
+  - Stores the file as `uploads/h.bin`
+  - Returns `s` to Alice
+
+### Bob downloads the file:
+- Alice gives Bob the secret `s` (securely, out-of-band)
+- Bob uses the EZRA client or tool to:
+  - Generate a ZK proof that he knows `s` such that `Poseidon(s) = h`
+  - Send the proof + public commitment to the EZRA server
+  - If valid, the server sends back the encrypted file
+  - Bob decrypts it locally using `s` or a derived AES key
+
+This achieves:
+- Anonymous file delivery
+- No metadata or identifiers stored
+- Zero-Knowledge access control
+- One-time access if desired
+
+---
 
 ## Files Summary
 
-- `poseidon_preimage.circom` – Circom 2 circuit definition
-- `input.json` – Input to the circuit
-- `witness.wtns` – Binary witness file
-- `proof.json` – Proof output
-- `public.json` – Public outputs (e.g., the Poseidon hash)
-- `poseidon_preimage_final.zkey` – Final proving key
-- `verification_key.json` – For verifying the proof
+| File | Purpose |
+|------|---------|
+| `poseidon_preimage.circom` | Circuit: prove knowledge of secret `s` s.t. `Poseidon(s) = h` |
+| `build_zk.sh` | Automates compiling, setup, and key generation |
+| `witness.wtns` | Witness generated for specific inputs |
+| `proof.json` | Proof that `s` is the preimage of `h` |
+| `public.json` | Public inputs (contains `h`) |
+| `verification_key.json` | For verifying ZK proof |
+| `uploads/<h>.bin` | Encrypted file stored by EZRA |
+
+---
+
+## Coming Soon
+
+- `ezra-client`: minimal multiplatform tool to prove + download
+- `/download` route for server-side verification
+- Enterprise mode (configurable logging, multiple recipients)
+
+---
+
+> Security through math. Privacy by default. Welcome to your digital dead drop.
 

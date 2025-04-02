@@ -1,12 +1,13 @@
 venv/ 
 wslvenv/
-"__pycache__/" 
+__pycache__/
 ".vscode/" 
 documents/
 scratch/
 qaptools/
 inputs/
 backup/
+node_modules/
 # Ignore specific file types ONLY inside working_dir/
 working_dir/*.r1cs
 working_dir/*.wtns

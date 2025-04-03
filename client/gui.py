@@ -7,10 +7,10 @@ from download import download_file
 class EzraApp(toga.App):
     def startup(self):
         # Main container
-        main_box = toga.Box(style=Pack(direction=COLUMN, padding=10, spacing=10))
+        main_box = toga.Box(style=Pack(direction=COLUMN, padding=10))
 
         # Input: base64 secret
-        self.secret_input = toga.TextInput(placeholder="Paste your EZRA secret here", style=Pack(flex=1))
+        self.secret_input = toga.TextInput(placeholder="Paste your EZRA secret here", style=Pack(flex=1, padding_top=5))
 
         # Status output
         self.status_label = toga.Label("", style=Pack(padding_top=5))
@@ -41,3 +41,6 @@ class EzraApp(toga.App):
 
 def main():
     return EzraApp("EZRA", "org.ezra.client")
+
+if __name__ == "__main__":
+    main().main_loop()

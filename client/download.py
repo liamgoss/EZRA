@@ -4,12 +4,34 @@ from werkzeug.utils import secure_filename
 from config import SERVER_URL
 
 
+from utils import generate_proof, pad_base64
+from config import SERVER_URL
+
 def download_file(secret_b64: str):
-    # Step 1: POST to /download
-    res = requests.post(f"{SERVER_URL}/download", json={"secret": secret_b64})
-    
+    try:
+        secret_bytes = base64.b64decode(pad_base64(secret_b64))
+        secret_int = int.from_bytes(secret_bytes, 'big')
+    except Exception as e:
+        print(f"[!] Invalid base64 secret: {e}")
+        return
+
+    # Step 1: Generate proof
+    try:
+        proof_data = generate_proof(secret_int)
+    except Exception as e:
+        print(f"[!] Failed to generate proof: {e}")
+        return
+
+    payload = {
+        "proof": proof_data["proof"],
+        "public": proof_data["public"]
+    }
+
+    # Step 2: Send proof to server
+    res = requests.post(f"{SERVER_URL}/download", json=payload)
+
     if res.status_code != 200:
-        print(f"[!] Failed to download: {res.status_code} - {res.text}")
+        print(f"[!] Download failed: {res.status_code} - {res.text}")
         return
 
     data = res.json()
@@ -17,7 +39,7 @@ def download_file(secret_b64: str):
     nonce = base64.b64decode(data["nonce"])
     key = base64.b64decode(data["key"])
 
-    # Step 2: Decrypt
+    # Step 3: Decrypt
     aesgcm = AESGCM(key)
     try:
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
@@ -25,7 +47,7 @@ def download_file(secret_b64: str):
         print("[!] Decryption failed:", e)
         return
 
-    # Step 3: Detect MIME
+    # Step 4: Detect MIME and choose file extension
     mime = magic.from_buffer(plaintext, mime=True)
     ext = {
         "application/pdf": ".pdf",
@@ -35,7 +57,7 @@ def download_file(secret_b64: str):
         "text/plain": ".txt"
     }.get(mime, ".bin")
 
-    output_filename = secure_filename(f"{str(uuid.uuid4())}{ext}")
+    output_filename = secure_filename(f"{uuid.uuid4()}{ext}")
     with open(output_filename, "wb") as f:
         f.write(plaintext)
 

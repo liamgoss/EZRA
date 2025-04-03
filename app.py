@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 from encryption import encrypt_file
 from werkzeug.utils import secure_filename
-import os, uuid, subprocess, base64
 from zk_utils import generate_secret, poseidon_hash
+import os, uuid, subprocess, base64, json
 
 UPLOAD_FOLDER = 'uploads/'
 
@@ -55,19 +55,52 @@ def upload():
     return jsonify({"secret": secret_b64})
 
 
+
 @app.route("/download", methods=["POST"])
 def download():
     data = request.get_json()
-    secret_b64 = data.get("secret")
-    if not secret_b64:
-        return "Missing secret", 400
+
+    proof = data.get("proof")
+    public = data.get("public")
+
+    # Validate basic structure
+    if not isinstance(proof, dict):
+        return "Invalid proof format", 400
+
+    if not isinstance(public, list) or not public or not all(isinstance(p, str) for p in public):
+        return "Invalid public format", 400
+
+    # Schema-level validation of the proof object
+    required_keys = {"pi_a", "pi_b", "pi_c", "protocol", "curve"}
+    if not required_keys.issubset(proof.keys()):
+        return "Malformed proof structure", 400
+
+    # Write files for snarkjs to read
+    tmp_proof_path = "working_dir/tmp_proof.json"
+    tmp_public_path = "working_dir/tmp_public.json"
 
     try:
-        secret = int.from_bytes(base64.b64decode(secret_b64), 'big')
-    except Exception:
-        return "Invalid secret format", 400
+        with open(tmp_proof_path, "w") as pf:
+            json.dump(proof, pf)
 
-    file_id = poseidon_hash(secret)
+        with open(tmp_public_path, "w") as pubf:
+            json.dump(public, pubf)
+
+        # Run snarkjs verify
+        subprocess.run([
+            "snarkjs", "groth16", "verify",
+            "working_dir/verification_key.json",
+            tmp_public_path,
+            tmp_proof_path
+        ], check=True)
+
+    except subprocess.CalledProcessError:
+        return "Invalid proof", 403
+
+    except Exception:
+        return "Server error during proof verification", 500
+
+    file_id = public[0]
     enc_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.enc")
     meta_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.meta")
 
@@ -87,53 +120,7 @@ def download():
         "key": base64.b64encode(key).decode(),
     })
 
-
-# Placeholder ZK proof endpoint
-@app.route("/prove", methods=["POST"])
-def generate_proof():
-    data = request.get_json()
-    secret = data.get("x")
-
-    if not secret:
-        return jsonify({"error": "Missing input 'x'"}), 400
-
-    # Write input.json
-    input_path = "inputs/input.json"
-    os.makedirs(os.path.dirname(input_path), exist_ok=True)
-    with open(input_path, "w") as f:
-        f.write(f'{{ "x": "{secret}" }}')
-
-    try:
-        # Generate witness
-        subprocess.run([
-            "snarkjs", "wtns", "calculate",
-            "circuits/poseidon_preimage_js/poseidon_preimage.wasm",
-            input_path,
-            "witness.wtns"
-        ], check=True)
-
-        # Generate proof
-        subprocess.run([
-            "snarkjs", "groth16", "prove",
-            "circuits/poseidon_preimage_final.zkey",
-            "witness.wtns",
-            "proof.json",
-            "public.json"
-        ], check=True)
-
-        # Read output
-        with open("proof.json") as pf, open("public.json") as pubf:
-            proof = pf.read()
-            public = pubf.read()
-
-        return jsonify({
-            "success": True,
-            "proof": proof,
-            "public": public
-        })
-
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": f"Proof generation failed: {str(e)}"}), 500
+    
 
 
 if __name__ == "__main__":

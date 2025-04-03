@@ -18,5 +18,17 @@ working_dir/*.json
 working_dir/*.zkey
 working_dir/*.ptau
 working_dir/*.sym
+working_dir/proof.json
+working_dir/public.json
 # Ignore snarkjs-generated WASM/JS
 working_dir/poseidon_preimage_js/
+
+client/tmp/
+
+*.pyc
+*.log
+# Sanity ignores just in case they are generated outside of working_dir and I didn't catch it
+*.zkey
+*.wtns
+*.r1cs
+*.sym

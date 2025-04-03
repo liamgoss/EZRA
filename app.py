@@ -49,6 +49,9 @@ def upload():
 
     # Return the secret (base64 encoded) to the user
     secret_b64 = base64.b64encode(secret.to_bytes(32, 'big')).decode()
+    print("Server generated secret (int):", secret)
+    print("Base64 returned to client:", secret_b64)
+
     return jsonify({"secret": secret_b64})
 
 

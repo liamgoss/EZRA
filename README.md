@@ -138,5 +138,5 @@ This achieves:
 
 ---
 
-> Security through math. Privacy by default. Welcome to your digital dead drop.
+> Anonymous. Secure. Temporary. Welcome to your digital dead drop.
 

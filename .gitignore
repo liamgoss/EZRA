@@ -8,6 +8,9 @@ qaptools/
 inputs/
 backup/
 node_modules/
+# Dont track uploads, but keep uploads/ empty dir tracked
+uploads/*
+!uploads/.gitkeep
 # Ignore specific file types ONLY inside working_dir/
 working_dir/*.r1cs
 working_dir/*.wtns

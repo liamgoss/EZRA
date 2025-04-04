@@ -5,9 +5,10 @@ from toga.style.pack import COLUMN, ROW
 from download import download_file
 
 class EzraApp(toga.App):
+
     def startup(self):
         # Main container
-        main_box = toga.Box(style=Pack(direction=COLUMN, padding=10))
+        self.main_box = toga.Box(style=Pack(direction=COLUMN, padding=10))
 
         # Input: base64 secret
         self.secret_input = toga.TextInput(placeholder="Paste your EZRA secret here", style=Pack(flex=1, padding_top=5))
@@ -15,18 +16,49 @@ class EzraApp(toga.App):
         # Status output
         self.status_label = toga.Label("", style=Pack(padding_top=5))
 
+        # Log output
+        # This is a multiline text input that will be used to show logs or output
+        self.log_output = toga.MultilineTextInput(style=Pack(flex=1, height=100), readonly=True)
+        self.log_output.visible = True
+
+        self.toggle_button = toga.Button(
+            "Hide Details",
+            on_press=self.toggle_details,
+            style=Pack(padding_top=10)
+        )
+
+
         # Buttons
         download_button = toga.Button("Download", on_press=self.handle_download, style=Pack(padding_top=5))
 
         # Widgets
-        main_box.add(self.secret_input)
-        main_box.add(download_button)
-        main_box.add(self.status_label)
+        self.main_box.add(self.secret_input)
+        self.main_box.add(download_button)
+        self.main_box.add(self.status_label)
+        self.main_box.add(self.toggle_button)
+        self.main_box.add(self.log_output)
+
 
         self.main_window = toga.MainWindow(title="EZRA Client")
-        self.main_window.content = main_box
+        self.main_window.content = self.main_box
         self.main_window.show()
 
+    def toggle_details(self, widget):
+        if self.log_output.visible:
+            self.log_output.visible = False
+            self.log_output.style.height = 0
+            widget.text = "Show Details"
+        else:
+            self.log_output.visible = True
+            self.log_output.style.height = 100  
+            widget.text = "Hide Details"
+        self.main_box.refresh()
+
+
+    def log_to_output(self, msg: str):
+        self.log_output.value += msg + "\n"
+
+    
     def handle_download(self, widget):
         secret = self.secret_input.value.strip()
         if not secret:
@@ -34,8 +66,8 @@ class EzraApp(toga.App):
             return
 
         try:
-            download_file(secret)
-            self.status_label.text = "[✓] File downloaded successfully."
+            filename = download_file(secret, logger=self.log_to_output)
+            self.status_label.text = f"[✓] File downloaded successfully to: {filename}"
         except Exception as e:
             self.status_label.text = f"[!] Error: {str(e)}"
 

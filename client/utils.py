@@ -36,7 +36,12 @@ def poseidon_hash(secret: int) -> int:
         print("stderr:", e.stderr)
         raise
 
-def generate_proof(secret: int) -> dict:
+def generate_proof(secret: int, logger=print) -> dict:
+    def log(msg):  # nested logger fallback
+        if logger:
+            logger(msg)
+
+    
     os.makedirs("tmp", exist_ok=True)
     input_path = "tmp/input.json"
     witness_path = "tmp/witness.wtns"
@@ -44,9 +49,9 @@ def generate_proof(secret: int) -> dict:
     public_path = "tmp/public.json"
 
     # Compute Poseidon hash as public input
-    print(f"Computing poseidon_hash using secret: {secret}")
+    log(f"Computing poseidon_hash using secret: {secret}")
     commitment = poseidon_hash(secret)
-    print(f"Computed commitment: {commitment} from secret: {secret}")
+    log(f"Computed commitment: {commitment} from secret: {secret}")
 
     # Step 1: Write full input.json (x = secret, expected = Poseidon(secret))
     with open(input_path, "w") as f:
@@ -75,10 +80,10 @@ def generate_proof(secret: int) -> dict:
 
     with open(proof_path, "r") as f:
         proof = json.load(f)
-    print(f"Wrote proof to: {proof_path}")
+    log(f"Wrote proof to: {proof_path}")
     with open(public_path, "r") as f:
         public = json.load(f)
-    print(f"Wrote public to: {public_path}")
+    log(f"Wrote public to: {public_path}")
 
     return {
         "proof": proof,

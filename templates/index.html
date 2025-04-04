@@ -21,7 +21,7 @@
     
     <form id="uploadForm">
       <label for="fileUpload" id="dropZone">
-        <input type="file" name="file" id="fileUpload" hidden>
+        <input type="file" name="file" id="fileUpload" hidden multiple>
         Drag and drop a file here or click to upload
       </label>
       <button type="submit">Submit</button>
@@ -40,10 +40,15 @@
     // Click opens file dialog
     dropZone.addEventListener('click', () => fileInput.click());
 
-    // Show selected file
+    // Show selected files
     fileInput.addEventListener('change', function () {
-      const file = fileInput.files[0];
-      dropZone.textContent = file ? `Selected: ${file.name}` : 'Drag and drop a file here or click to upload';
+      const files = Array.from(fileInput.files);
+      if (files.length > 0) {
+        const names = files.map(f => f.name).join(', ');
+        dropZone.textContent = `Selected: ${names}`;
+      } else {
+        dropZone.textContent = 'Drag and drop a file here or click to upload';
+      }
     });
 
     // Drag and drop behavior
@@ -59,22 +64,27 @@
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
       fileInput.files = e.dataTransfer.files;
-      dropZone.textContent = `Selected: ${file.name}`;
+
+      const files = Array.from(fileInput.files);
+      const names = files.map(f => f.name).join(', ');
+      dropZone.textContent = `Selected: ${names}`;
     });
+
 
     // Handle form submission
     uploadForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("No file selected.");
+      const files = Array.from(fileInput.files);
+      if (files.length === 0) {
+        alert("No files selected.");
         return;
       }
 
       const formData = new FormData();
-      formData.append("file", file);
+      files.forEach(file => {
+        formData.append("file", file);
+      });
 
       try {
         const res = await fetch("/upload", {

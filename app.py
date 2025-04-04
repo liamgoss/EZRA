@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
-from encryption import encrypt_file
 from werkzeug.utils import secure_filename
+from pathlib import Path
 from zk_utils import generate_secret, poseidon_hash
+from storage import encrypt_files_to_ezra
 import os, uuid, subprocess, base64, json
 
 UPLOAD_FOLDER = 'uploads/'
@@ -22,44 +23,54 @@ def index():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    if 'file' not in request.files:
-        return "No file uploaded", 400
+    if "file" not in request.files:
+        return "No file provided", 400
 
-    file = request.files['file']
-    if file.filename == '':
-        return "Empty filename", 400
+    files = request.files.getlist("file")
+    if not files or all(f.filename == "" for f in files):
+        return "No valid files selected", 400
 
-    # Read file and encrypt
-    file_bytes = file.read()
-    result = encrypt_file(file_bytes)
+    temp_paths = []
+    for f in files:
+        original_name = secure_filename(f.filename)
+        random_ext = os.path.splitext(original_name)[1]
+        random_name = f"{uuid.uuid4()}{random_ext}"
+        temp_path = Path("uploads") / random_name
+        f.save(temp_path)
+        temp_paths.append(temp_path)
 
-    # Generate secret and Poseidon hash (used as file_id)
+    # Create archive + encrypt
+    result = encrypt_files_to_ezra(temp_paths)
+
+    # Generate secret + commitment
+    from zk_utils import generate_secret, poseidon_hash
     secret = generate_secret()
     file_id = poseidon_hash(secret)
 
-    # Store encrypted data
-    enc_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.enc")
-    meta_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.meta")
+    ezra_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezra")
+    ezrm_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezrm")
 
-    with open(enc_path, "wb") as f:
-        f.write(result['ciphertext'])
+    with open(ezra_path, "wb") as f:
+        f.write(result["ciphertext"])
+    with open(ezrm_path, "wb") as f:
+        f.write(result["nonce"] + result["key"])
 
-    with open(meta_path, "wb") as f:
-        f.write(result['nonce'] + result['key'])
+    print(f"[UPLOAD] Stored file with ID: {file_id}")
 
-    # Return the secret (base64 encoded) to the user
-    secret_b64 = base64.b64encode(secret.to_bytes(32, 'big')).decode()
-    print("Server generated secret (int):", secret)
-    print("Base64 returned to client:", secret_b64)
+    # Cleanup temp files
+    for path in temp_paths:
+        path.unlink(missing_ok=True)
 
-    return jsonify({"secret": secret_b64})
+    # Return base64-encoded secret to the user
+    secret_b64 = base64.b64encode(secret.to_bytes(32, "big")).decode()
+    return jsonify({ "secret": secret_b64 })
 
 
 
 @app.route("/download", methods=["POST"])
 def download():
     data = request.get_json()
-
+    
     proof = data.get("proof")
     public = data.get("public")
 
@@ -101,18 +112,20 @@ def download():
         return "Server error during proof verification", 500
 
     file_id = public[0]
-    enc_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.enc")
-    meta_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.meta")
+    ezra_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezra")
+    ezrm_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrm")
 
-    if not os.path.exists(enc_path) or not os.path.exists(meta_path):
+    print(f"[DOWNLOAD] Looking for: {ezra_path}, {ezrm_path}")
+
+    if not os.path.exists(ezra_path) or not os.path.exists(ezrm_path):
         return "File not found", 404
 
-    with open(enc_path, "rb") as f:
+    with open(ezra_path, "rb") as f:
         ciphertext = f.read()
-    with open(meta_path, "rb") as f:
-        meta = f.read()
-        nonce = meta[:12]
-        key = meta[12:]
+    with open(ezrm_path, "rb") as f:
+        ezrm = f.read()
+        nonce = ezrm[:12]
+        key = ezrm[12:]
 
     return jsonify({
         "ciphertext": base64.b64encode(ciphertext).decode(),

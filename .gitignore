@@ -23,8 +23,16 @@ working_dir/public.json
 # Ignore snarkjs-generated WASM/JS
 working_dir/poseidon_preimage_js/
 
+!tests/*.py
+tests/*
+tests/recovered/
+
+!client/*.py
+client/*
 client/tmp/
 
+*.ezra
+*.ezrm
 *.pyc
 *.log
 # Sanity ignores just in case they are generated outside of working_dir and I didn't catch it

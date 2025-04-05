@@ -3,7 +3,7 @@ from werkzeug.utils import secure_filename
 from pathlib import Path
 from zk_utils import generate_secret, poseidon_hash
 from storage import encrypt_files_to_ezra
-import os, uuid, subprocess, base64, json
+import os, uuid, subprocess, base64, json, time
 
 UPLOAD_FOLDER = 'uploads/'
 
@@ -47,13 +47,31 @@ def upload():
     secret = generate_secret()
     file_id = poseidon_hash(secret)
 
-    ezra_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezra")
-    ezrm_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezrm")
 
+    # These will be passed as form data from frontend later
+    expire_days = int(request.form.get("expire_days", 7))  # 7 = Default expiration days
+    delete_after_download = request.form.get("delete_after_download") == "true" # Convert "true" to Python bool True/False
+
+    # Determine expiration policy
+    actual_expire_days = expire_days if expire_days > 0 else 7
+    ezrd = {
+        "expires_at": int(time.time()) + actual_expire_days * 86400,
+        "delete_on_download": delete_after_download or expire_days == 0
+    }
+
+    ezra_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezra") # Encrypted file container
+    ezrm_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezrm") # .ezra decryption key + nonce
+    ezrd_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezrd") # .ezra deletion criteria
+
+    # Save encrypted container to file
     with open(ezra_path, "wb") as f:
         f.write(result["ciphertext"])
+    # Save key + nonce
     with open(ezrm_path, "wb") as f:
         f.write(result["nonce"] + result["key"])
+    # Save deletion policy
+    with open(ezrd_path, "w") as f:
+        json.dump(ezrd, f)
 
     print(f"[UPLOAD] Stored file with ID: {file_id}")
 

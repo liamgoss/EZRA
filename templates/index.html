@@ -24,22 +24,66 @@
         <input type="file" name="file" id="fileUpload" hidden multiple>
         Drag and drop a file here or click to upload
       </label>
-      <button type="submit">Submit</button>
+      <button type="submit">Confirm</button>
     </form>
+
+    <div id="uploadOptionsModal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Upload Settings</h3>
+    
+        <label>
+          Erase after first download:
+          <input type="checkbox" id="deleteAfterDownload" checked>
+        </label>
+        <br>
+        <br>
+        <label for="expiryDays">Expire after (days):</label>
+        <select id="expiryDays">
+          <!-- options will be dynamically generated -->
+        </select>
+
+    
+    
+        <div style="margin-top: 1rem;">
+          <button id="confirmUpload">Submit</button>
+          <button id="cancelUpload" class="secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
 
     <p id="responseMsg"></p>
 
     <!--<button id="contactEnterprise">Contact Enterprise Sales</button>-->
   </main>
   <script>
+    
     const uploadForm = document.getElementById("uploadForm");
     const fileInput = document.getElementById("fileUpload");
     const dropZone = document.getElementById("dropZone");
     const responseMsg = document.getElementById("responseMsg");
+  
+    const modal = document.getElementById("uploadOptionsModal");
 
+    
+    const cancelUpload = document.getElementById("cancelUpload");
+    const deleteAfterDownload = document.getElementById("deleteAfterDownload");
+
+    // Dynamically populate expiryDays dropdown
+    const expiryDays = document.getElementById("expiryDays");
+    for (let i = 1; i <= 30; i++) {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = i;
+      if (i === 7) option.selected = true; // Default to 7 days
+      expiryDays.appendChild(option);
+    }
+
+  
+    let pendingFiles = [];
+  
     // Click opens file dialog
     dropZone.addEventListener('click', () => fileInput.click());
-
+  
     // Show selected files
     fileInput.addEventListener('change', function () {
       const files = Array.from(fileInput.files);
@@ -50,60 +94,76 @@
         dropZone.textContent = 'Drag and drop a file here or click to upload';
       }
     });
-
+  
     // Drag and drop behavior
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       dropZone.classList.add('dragover');
     });
-
+  
     dropZone.addEventListener('dragleave', () => {
       dropZone.classList.remove('dragover');
     });
-
+  
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
       fileInput.files = e.dataTransfer.files;
-
+  
       const files = Array.from(fileInput.files);
       const names = files.map(f => f.name).join(', ');
       dropZone.textContent = `Selected: ${names}`;
     });
-
-
-    // Handle form submission
-    uploadForm.addEventListener("submit", async (e) => {
+  
+    // Submit form triggers modal
+    uploadForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const files = Array.from(fileInput.files);
       if (files.length === 0) {
         alert("No files selected.");
         return;
       }
-
+  
+      pendingFiles = files;
+      modal.classList.remove("hidden");
+    });
+  
+    cancelUpload.addEventListener("click", () => {
+      modal.classList.add("hidden");
+      pendingFiles = [];
+    });
+  
+    confirmUpload.addEventListener("click", async () => {
       const formData = new FormData();
-      files.forEach(file => {
+      pendingFiles.forEach(file => {
         formData.append("file", file);
       });
-
+  
+      formData.append("delete_after_download", deleteAfterDownload.checked);
+      formData.append("expire_days", expiryDays.value);
+  
       try {
         const res = await fetch("/upload", {
           method: "POST",
           body: formData,
         });
-
+  
         if (res.status === 413) {
-          responseMsg.textContent = "File too large. Max size is 16MB.";
+          responseMsg.textContent = "File too large. Max size is 100MB.";
           return;
         }
-
+  
         const text = await res.text();
         responseMsg.textContent = `Server response: ${text}`;
       } catch (err) {
         console.error(err);
         responseMsg.textContent = "Upload failed. Check the console for more info.";
+      } finally {
+        modal.classList.add("hidden");
+        pendingFiles = [];
       }
     });
   </script>
+  
 </body>
 </html>

@@ -50,3 +50,31 @@ body {
     border-radius: 4px;
   }
   
+  .modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .modal-content {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    text-align: left;
+    max-width: 400px;
+    width: 100%;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  .secondary {
+    background: #ccc;
+    color: #000;
+    margin-left: 0.5rem;
+  }
+  

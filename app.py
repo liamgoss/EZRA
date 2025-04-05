@@ -2,19 +2,27 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, f
 from werkzeug.utils import secure_filename
 from pathlib import Path
 from zk_utils import generate_secret, poseidon_hash
-from storage import encrypt_files_to_ezra
+from storage import encrypt_files_to_ezra, timestomp, pad_file_reasonably, pad_file_to_exact_size
 import os, uuid, subprocess, base64, json, time
+from dotenv import load_dotenv
 
-UPLOAD_FOLDER = 'uploads/'
 
+load_dotenv()
+UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads/")
+MAX_CONTENT_LENGTH_MB = int(os.getenv("MAX_CONTENT_LENGTH_MB", 50))
+MAX_FILE_COUNT = int(os.getenv("MAX_FILE_COUNT", 5))
 
 # Ensure the uploads directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
+# App config
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1000 * 1000 # 100MB file size limit
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH_MB * 1000 * 1000 # e.g. 50MB file size limit
+app.config['MAX_FILE_COUNT'] = MAX_FILE_COUNT
+
+
+
 
 
 @app.route("/", methods=["GET"])
@@ -29,6 +37,9 @@ def upload():
     files = request.files.getlist("file")
     if not files or all(f.filename == "" for f in files):
         return "No valid files selected", 400
+    
+    if len(files) > MAX_FILE_COUNT:
+        return f"Too many files. Maximum allowed is {MAX_FILE_COUNT}.", 400
 
     temp_paths = []
     for f in files:
@@ -71,6 +82,13 @@ def upload():
     # Save deletion policy
     with open(ezrd_path, "w") as f:
         json.dump(ezrd, f)
+
+    # EZRA container, key/nonce file, and deletion policy file timestomped
+    
+    pad_file_reasonably(Path(ezra_path)) # Pad .ezra according to next nearest increment
+    pad_file_to_exact_size(Path(ezrm_path), 4000) # Pad .ezrm to 4KB
+    pad_file_to_exact_size(Path(ezrd_path), 4000) # Pad .ezrd to 4KB
+    timestomp([Path(ezra_path), Path(ezrm_path), Path(ezrd_path)])
 
     print(f"[UPLOAD] Stored file with ID: {file_id}")
 

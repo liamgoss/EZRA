@@ -119,6 +119,13 @@
     uploadForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const files = Array.from(fileInput.files);
+
+      const maxFiles = 5;  // Should match the server’s limit
+
+      if (files.length > maxFiles) {
+        alert(`You can only upload up to ${maxFiles} files.`);
+        return;
+      }
       if (files.length === 0) {
         alert("No files selected.");
         return;
@@ -149,7 +156,7 @@
         });
   
         if (res.status === 413) {
-          responseMsg.textContent = "File too large. Max size is 100MB.";
+          responseMsg.textContent = "File too large. Max size is 50MB.";
           return;
         }
   

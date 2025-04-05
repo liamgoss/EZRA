@@ -48,8 +48,9 @@ def download_file(secret_b64: str, logger=print):
         log("[⋯] Decrypting...")
         ciphertext = base64.b64decode(data["ciphertext"])
         nonce = base64.b64decode(data["nonce"])
-        key = base64.b64decode(data["key"])
-
+        key = base64.b64decode(data["key"])[:32]  # Trim padded key if needed
+        log(f"nonce: {nonce}")
+        key(f"key: {key}")
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         log("[✓] Decryption successful")
@@ -75,4 +76,5 @@ def download_file(secret_b64: str, logger=print):
         return output_filename
     except Exception as e:
         log(f"[!] Failed to write file: {e}")
-        return  None
+        return None
+

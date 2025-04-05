@@ -49,13 +49,15 @@ def download_file(secret_b64: str, logger=print):
         ciphertext = base64.b64decode(data["ciphertext"])
         nonce = base64.b64decode(data["nonce"])
         key = base64.b64decode(data["key"])[:32]  # Trim padded key if needed
-        log(f"nonce: {nonce}")
-        log(f"key: {key}")
+        log(f"nonce (b64): {base64.b64encode(nonce).decode()}")
+        log(f"key (b64): {base64.b64encode(key).decode()}")
+        log(f"key length: {len(key)} bytes")
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         log("[✓] Decryption successful")
     except Exception as e:
         log(f"[!] Decryption failed: {e}")
+        print(f"[!] Decryption failed: {e}")
         return None
 
     # Step 4: Detect MIME and choose file extension

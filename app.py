@@ -43,7 +43,6 @@ def upload():
     result = encrypt_files_to_ezra(temp_paths)
 
     # Generate secret + commitment
-    from zk_utils import generate_secret, poseidon_hash
     secret = generate_secret()
     file_id = poseidon_hash(secret)
 

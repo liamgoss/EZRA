@@ -50,7 +50,7 @@ def download_file(secret_b64: str, logger=print):
         nonce = base64.b64decode(data["nonce"])
         key = base64.b64decode(data["key"])[:32]  # Trim padded key if needed
         log(f"nonce: {nonce}")
-        key(f"key: {key}")
+        log(f"key: {key}")
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         log("[✓] Decryption successful")

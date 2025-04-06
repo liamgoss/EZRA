@@ -3,7 +3,7 @@ from werkzeug.utils import secure_filename
 from pathlib import Path
 from zk_utils import generate_secret, poseidon_hash
 from storage import encrypt_files_to_ezra, timestomp, pad_file_reasonably, pad_file_to_exact_size
-import os, uuid, subprocess, base64, json, time
+import os, uuid, subprocess, base64, json, time, threading
 from dotenv import load_dotenv
 
 
@@ -101,6 +101,17 @@ def upload():
     return jsonify({ "secret": secret_b64 })
 
 
+def delayed_delete(file_id, delay=5):
+    time.sleep(delay)
+    for ext in [".ezra", ".ezrm", ".ezrd"]:
+        path = os.path.join(UPLOAD_FOLDER, f"{file_id}{ext}")
+        try:
+            os.remove(path)
+            print(f"[CLEANUP] Deleted: {path}")
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            print(f"[!] Error deleting {path}: {e}")
 
 @app.route("/download", methods=["POST"])
 def download():
@@ -149,18 +160,35 @@ def download():
     file_id = public[0]
     ezra_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezra")
     ezrm_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrm")
+    ezrd_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrd")
 
-    print(f"[DOWNLOAD] Looking for: {ezra_path}, {ezrm_path}")
+    print(f"[DOWNLOAD] Looking for: {ezra_path}, {ezrm_path}, {ezrd_path}")
 
     if not os.path.exists(ezra_path) or not os.path.exists(ezrm_path):
         return "File not found", 404
+
+    # Load .ezrd metadata if it exists
+    should_delete = False
+    if os.path.exists(ezrd_path):
+        with open(ezrd_path, "rb") as f:
+            try:
+                raw = f.read().rstrip(b'\x00')  # Remove null padding
+                ezrd = json.loads(raw.decode("utf-8"))
+                should_delete = ezrd.get("delete_on_download", False)
+            except Exception as e:
+                print(f"[!] Failed to parse .ezrd for {file_id}: {e}")
+
+    if should_delete:
+        print(f"[→] Deletion policy active for {file_id} — scheduling deletion in background")
+        threading.Thread(target=delayed_delete, args=(file_id,), daemon=True).start()
+
 
     with open(ezra_path, "rb") as f:
         ciphertext = f.read()
     with open(ezrm_path, "rb") as f:
         ezrm = f.read()
         nonce = ezrm[:12]
-        key = ezrm[12:]
+        key = ezrm[12:].rstrip(b"\x00")  # ← Trim padding!
 
     return jsonify({
         "ciphertext": base64.b64encode(ciphertext).decode(),

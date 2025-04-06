@@ -71,6 +71,10 @@ body {
   .hidden {
     display: none;
   }
+
+  .modal.hidden {
+    display: none;
+  }
   
   .secondary {
     background: #ccc;
@@ -78,3 +82,17 @@ body {
     margin-left: 0.5rem;
   }
   
+  button:disabled {
+    background-color: #ccc;
+    color: #666;
+    cursor: not-allowed;
+  }
+  #secretMessage {
+    white-space: pre-wrap;       /* respects line breaks and wraps long lines */
+    word-wrap: break-word;       /* breaks long words if needed */
+    overflow-wrap: break-word;
+    max-width: 90%;
+    overflow-x: auto;
+    padding: 1rem;
+    font-family: monospace;
+  }

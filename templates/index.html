@@ -51,37 +51,52 @@
       </div>
     </div>
 
-    <p id="responseMsg"></p>
+    <!---<p id="responseMsg"></p>-->
 
-    <!--<button id="contactEnterprise">Contact Enterprise Sales</button>-->
+    <!---<button id="contactEnterprise">Contact Enterprise Sales</button>-->
+
+    <div id="secretModal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Secret Key</h3>
+        <p id="secretMessage"></p>
+        <br>
+        <br>
+        <button id="copySecret">Copy to Clipboard</button>
+        <button id="closeSecretModal" disabled>Close (5)</button>
+      </div>
+    </div>
+
   </main>
   <script>
-    
     const uploadForm = document.getElementById("uploadForm");
     const fileInput = document.getElementById("fileUpload");
     const dropZone = document.getElementById("dropZone");
     const responseMsg = document.getElementById("responseMsg");
   
     const modal = document.getElementById("uploadOptionsModal");
-
-    
     const cancelUpload = document.getElementById("cancelUpload");
+    const confirmUpload = document.getElementById("confirmUpload");
     const deleteAfterDownload = document.getElementById("deleteAfterDownload");
-
-    // Dynamically populate expiryDays dropdown
+    let currentSecret = "";
+  
     const expiryDays = document.getElementById("expiryDays");
     for (let i = 1; i <= 30; i++) {
       const option = document.createElement("option");
       option.value = i;
       option.textContent = i;
-      if (i === 7) option.selected = true; // Default to 7 days
+      if (i === 7) option.selected = true;
       expiryDays.appendChild(option);
     }
-
   
     let pendingFiles = [];
   
-    // Click opens file dialog
+    // Secret Modal Elements
+    const secretModal = document.getElementById("secretModal");
+    const secretMessage = document.getElementById("secretMessage");
+    const copySecretBtn = document.getElementById("copySecret");
+    const closeSecretModalBtn = document.getElementById("closeSecretModal");
+  
+    // File dialog
     dropZone.addEventListener('click', () => fileInput.click());
   
     // Show selected files
@@ -95,7 +110,6 @@
       }
     });
   
-    // Drag and drop behavior
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       dropZone.classList.add('dragover');
@@ -115,13 +129,12 @@
       dropZone.textContent = `Selected: ${names}`;
     });
   
-    // Submit form triggers modal
+    // Submit shows modal
     uploadForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const files = Array.from(fileInput.files);
-
-      const maxFiles = 5;  // Should match the server’s limit
-
+      const maxFiles = 5;
+  
       if (files.length > maxFiles) {
         alert(`You can only upload up to ${maxFiles} files.`);
         return;
@@ -160,8 +173,9 @@
           return;
         }
   
-        const text = await res.text();
-        responseMsg.textContent = `Server response: ${text}`;
+        const json = await res.json();
+        showSecretModal(json.secret);
+  
       } catch (err) {
         console.error(err);
         responseMsg.textContent = "Upload failed. Check the console for more info.";
@@ -170,7 +184,65 @@
         pendingFiles = [];
       }
     });
+  
+    // Secret Modal Logic
+    function showSecretModal(secret) {
+      currentSecret = secret;
+      secretMessage.innerHTML = `This is your secret:<br><br><strong>${secret}</strong><br><br>Copy and share it securely. You won't be able to retrieve it again.`;
+  
+      let countdown = 5;
+      closeSecretModalBtn.disabled = true;
+      closeSecretModalBtn.textContent = `Close (${countdown})`;
+      secretModal.classList.remove("hidden");
+  
+      const timer = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          closeSecretModalBtn.textContent = `Close (${countdown})`;
+        } else {
+          clearInterval(timer);
+          closeSecretModalBtn.disabled = false;
+          closeSecretModalBtn.textContent = "Close";
+        }
+      }, 1000);
+  
+      copySecretBtn.onclick = () => {
+        const tempInput = document.createElement("textarea");
+        tempInput.value = currentSecret; // Clipboard fallback
+        document.body.appendChild(tempInput); // Create a temporary input element
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+
+        copySecretBtn.textContent = "Copied!";
+        setTimeout(() => {
+          copySecretBtn.textContent = "Copy to Clipboard";
+        }, 2000);
+      };
+  
+      closeSecretModalBtn.onclick = () => {
+        secretModal.classList.add("hidden");
+        secretMessage.textContent = "";
+        currentSecret = "";
+        resetUploadUI();
+
+      };
+    }
+
+    function resetUploadUI() {
+      // Reset file input
+      fileInput.value = "";
+      dropZone.textContent = "Drag and drop a file here or click to upload";
+
+      // Reset form data
+      pendingFiles = [];
+
+      // Also reset form fields just in case
+      uploadForm.reset();
+    }
+
   </script>
+  
   
 </body>
 </html>

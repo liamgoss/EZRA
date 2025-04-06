@@ -1,4 +1,4 @@
-import base64, requests, magic, uuid
+import base64, requests, magic, uuid, traceback
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from werkzeug.utils import secure_filename
 
@@ -48,16 +48,17 @@ def download_file(secret_b64: str, logger=print):
         log("[⋯] Decrypting...")
         ciphertext = base64.b64decode(data["ciphertext"])
         nonce = base64.b64decode(data["nonce"])
-        key = base64.b64decode(data["key"])[:32]  # Trim padded key if needed
-        log(f"nonce (b64): {base64.b64encode(nonce).decode()}")
-        log(f"key (b64): {base64.b64encode(key).decode()}")
-        log(f"key length: {len(key)} bytes")
+        key = base64.b64decode(data["key"])
+        if len(key) != 32:
+            log(f"[!] Warning: AES key is {len(key)} bytes, expected 32")
+
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         log("[✓] Decryption successful")
     except Exception as e:
-        log(f"[!] Decryption failed: {e}")
-        print(f"[!] Decryption failed: {e}")
+        log(f"[!] Decryption failed: {repr(e)}")
+        traceback_str = traceback.format_exc()
+        log(f"[!] Traceback:\n{traceback_str}")
         return None
 
     # Step 4: Detect MIME and choose file extension

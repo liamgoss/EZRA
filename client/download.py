@@ -46,8 +46,10 @@ def download_file(secret_b64: str, logger=print):
     # Step 3: Decrypt
     try:
         log("[⋯] Decrypting...")
-        ciphertext = base64.b64decode(data["ciphertext"])
+        ciphertext = base64.b64decode(data["ciphertext"]).rstrip(b'\x00')
         nonce = base64.b64decode(data["nonce"])
+        if len(nonce) != 12:
+            log(f"[!] Warning: Nonce is {len(nonce)} bytes, expected 12")
         key = base64.b64decode(data["key"])
         if len(key) != 32:
             log(f"[!] Warning: AES key is {len(key)} bytes, expected 32")

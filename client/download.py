@@ -6,7 +6,7 @@ from utils import generate_proof, pad_base64
 from config import SERVER_URL
 
 
-def download_file(secret_b64: str, logger=print):
+def download_file(secret_b64, dir, logger=print):
     def log(msg):  # nested logger fallback
         if logger:
             logger(msg)
@@ -74,11 +74,13 @@ def download_file(secret_b64: str, logger=print):
     }.get(mime, ".bin")
 
     output_filename = secure_filename(f"{uuid.uuid4()}{ext}")
+    output_path = f"{dir}/{output_filename}"
+
     try:
-        with open(output_filename, "wb") as f:
+        with open(output_path, "wb") as f:
             f.write(plaintext)
-        log(f"[✓] File saved as: {output_filename} (MIME: {mime})")
-        return output_filename
+        log(f"[✓] File saved as: {output_path} (MIME: {mime})")
+        return output_path
     except Exception as e:
         log(f"[!] Failed to write file: {e}")
         return None

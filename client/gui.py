@@ -8,42 +8,52 @@ from download import download_file
 class EzraApp(toga.App):
 
     def startup(self):
-        # Main container
-        self.main_box = toga.Box(style=Pack(direction=COLUMN, padding=10))
+        # Main container with outer padding
+        self.main_box = toga.Box(style=Pack(direction=COLUMN, padding=20))
 
-        # Input: base64 secret
-        self.secret_input = toga.TextInput(placeholder="Paste your EZRA secret here", style=Pack(flex=1, padding_top=5))
+        # Input Section
+        input_section = toga.Box(style=Pack(direction=COLUMN, padding_bottom=10))
+        input_section.add(toga.Label("Paste your EZRA secret:", style=Pack(padding_bottom=5)))
+
+        self.secret_input = toga.TextInput(
+            placeholder="Paste your EZRA secret here",
+            style=Pack(padding_bottom=10)
+        )
+        input_section.add(self.secret_input)
+
+        # Folder selection
+        folder_section = toga.Box(style=Pack(direction=ROW, padding_bottom=10))
+        self.destination_label = toga.Label("Selected folder: None", style=Pack(flex=1, padding_right=10))
+        folder_button = toga.Button("Select Folder", on_press=self.choose_save_folder)
+        folder_section.add(self.destination_label)
+        folder_section.add(folder_button)
+
+        input_section.add(folder_section)
+
+        # Download button
+        download_button = toga.Button("Download", on_press=self.handle_download, style=Pack(padding_bottom=10))
+        input_section.add(download_button)
 
         # Status output
-        self.status_label = toga.Label("", style=Pack(padding_top=5))
+        self.status_label = toga.Label("", style=Pack(padding_bottom=5, font_weight="bold"))
+        input_section.add(self.status_label)
 
-        # Log output
-        # This is a multiline text input that will be used to show logs or output
-        self.log_output = toga.MultilineTextInput(style=Pack(flex=1, height=100), readonly=True)
+        # Output Section
+        self.log_output = toga.MultilineTextInput(style=Pack(height=120), readonly=True)
         self.log_output.visible = True
 
         self.toggle_button = toga.Button(
             "Hide Details",
             on_press=self.toggle_details,
-            style=Pack(padding_top=10)
+            style=Pack(padding_top=5)
         )
 
-        self.save_folder = None
-        
-
-        # Buttons
-        output_dir_button = toga.Button("Select Destination Folder", on_press=self.choose_save_folder, style=Pack(padding_top=5))
-        download_button = toga.Button("Download", on_press=self.handle_download, style=Pack(padding_top=5))
-
-        # Widgets
-        self.main_box.add(self.secret_input)
-        self.main_box.add(output_dir_button)
-        self.main_box.add(download_button)
-        self.main_box.add(self.status_label)
+        # Assemble everything
+        self.main_box.add(input_section)
         self.main_box.add(self.toggle_button)
         self.main_box.add(self.log_output)
 
-
+        # Set up main window
         self.main_window = toga.MainWindow(title="EZRA Client")
         self.main_window.content = self.main_box
         self.main_window.show()
@@ -78,7 +88,8 @@ class EzraApp(toga.App):
     def folder_selected(self, dialog, folder):
         if folder:
             self.save_folder = folder
-            self.status_label.text = f"Selected folder: {folder}"
+            #self.status_label.text = f"Selected folder: {folder}"
+            self.destination_label.text = f"Selected folder: {folder}"
 
 
     def log_to_output(self, msg: str):
@@ -93,10 +104,25 @@ class EzraApp(toga.App):
 
         try:
             filename = download_file(secret, self.save_folder, logger=self.log_to_output)
-            self.status_label.text = f"[✓] File downloaded successfully to: {filename}"
-
+            if filename:
+                self.status_label.text = f"[✓] File downloaded successfully to: {filename}"
+            else:
+                self.status_label.text = "[!] Download failed."
+                self.main_window.info_dialog(
+                    "Download Failed",
+                    "The file could not be downloaded. This might mean:\n\n"
+                    "- The secret is incorrect\n"
+                    "- The file has expired or was already downloaded\n"
+                    "- The file never existed\n\n"
+                    "Please verify the secret and try again."
+                )
         except Exception as e:
-            self.status_label.text = f"[!] Error: {str(e)}"
+            self.status_label.text = f"[!] Unexpected error: {str(e)}"
+            self.main_window.info_dialog(
+                "Unexpected Error",
+                f"An unexpected error occurred during download:\n\n{str(e)}"
+            )
+
 
 def main():
     return EzraApp("EZRA", "org.ezra.client")

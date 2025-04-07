@@ -88,7 +88,6 @@ class EzraApp(toga.App):
     def folder_selected(self, dialog, folder):
         if folder:
             self.save_folder = folder
-            #self.status_label.text = f"Selected folder: {folder}"
             self.destination_label.text = f"Selected folder: {folder}"
 
 
@@ -98,29 +97,35 @@ class EzraApp(toga.App):
     
     def handle_download(self, widget):
         secret = self.secret_input.value.strip()
+        
         if not secret:
             self.status_label.text = "[!] No secret provided."
+            return
+
+        if not hasattr(self, "save_folder") or self.save_folder is None:
+            self.status_label.text = "[!] Please select a destination folder before downloading."
             return
 
         try:
             filename = download_file(secret, self.save_folder, logger=self.log_to_output)
             if filename:
                 self.status_label.text = f"[✓] File downloaded successfully to: {filename}"
+                self.open_folder(filename)
             else:
-                self.status_label.text = "[!] Download failed."
-                self.main_window.info_dialog(
+                self.status_label.text = "[!] Failed to download or decrypt file."
+                self.main_window.error_dialog(
                     "Download Failed",
                     "The file could not be downloaded. This might mean:\n\n"
                     "- The secret is incorrect\n"
-                    "- The file has expired or was already downloaded\n"
-                    "- The file never existed\n\n"
+                    "- The file has expired\n"
+                    "- The file was already downloaded (and erased)\n\n"
                     "Please verify the secret and try again."
                 )
         except Exception as e:
             self.status_label.text = f"[!] Unexpected error: {str(e)}"
-            self.main_window.info_dialog(
+            self.main_window.error_dialog(
                 "Unexpected Error",
-                f"An unexpected error occurred during download:\n\n{str(e)}"
+                f"An unexpected error occurred during download:\n\n{e}"
             )
 
 

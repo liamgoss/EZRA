@@ -63,25 +63,15 @@ def download_file(secret_b64, dir, logger=print):
         log(f"[!] Traceback:\n{traceback_str}")
         return None
 
-    # Step 4: Detect MIME and choose file extension
-    mime = magic.from_buffer(plaintext, mime=True)
-    ext = {
-        "application/pdf": ".pdf",
-        "image/png": ".png",
-        "image/jpeg": ".jpg",
-        "application/zip": ".zip",
-        "text/plain": ".txt"
-    }.get(mime, ".bin")
-
-    output_filename = secure_filename(f"{uuid.uuid4()}{ext}")
+    # Step 4: Save as .zip (Once decrypted, .ezra is just a zip file)
+    output_filename = secure_filename(f"{uuid.uuid4()}.zip")
     output_path = f"{dir}/{output_filename}"
 
     try:
         with open(output_path, "wb") as f:
             f.write(plaintext)
-        log(f"[✓] File saved as: {output_path} (MIME: {mime})")
+        log(f"[✓] File saved as: {output_path}")
         return output_path
     except Exception as e:
         log(f"[!] Failed to write file: {e}")
         return None
-

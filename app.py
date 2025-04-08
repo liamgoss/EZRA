@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
-from werkzeug.utils import secure_filename
-from pathlib import Path
-from zk_utils import generate_secret, poseidon_hash
 from storage import encrypt_files_to_ezra, timestomp, pad_file_reasonably, pad_file_to_exact_size
-import os, uuid, subprocess, base64, json, time, threading
+from encryption import encrypt_ezrm, decrypt_ezrm
+from zk_utils import generate_secret, get_commitment
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from pathlib import Path
+import os, uuid, subprocess, base64, json, time, threading, shutil, glob
+
 
 
 load_dotenv()
@@ -53,10 +55,17 @@ def upload():
     # Create archive + encrypt
     result = encrypt_files_to_ezra(temp_paths)
 
-    # Generate secret + commitment
+    # Generate secret and full proof/commitment
     secret = generate_secret()
-    file_id = poseidon_hash(secret)
+    commitment = get_commitment(secret)  # also runs snarkjs and saves proof/public to working_dir
+    file_id = commitment
 
+    # Copy proof and public files to upload dir for verification later
+    ezrp_proof_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.proof.json")
+    ezrp_public_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.public.json")
+
+    shutil.copy("working_dir/proof.json", ezrp_proof_path)
+    shutil.copy("working_dir/public.json", ezrp_public_path)
 
     # These will be passed as form data from frontend later
     expire_days = int(request.form.get("expire_days", 7))  # 7 = Default expiration days
@@ -76,19 +85,19 @@ def upload():
     # Save encrypted container to file
     with open(ezra_path, "wb") as f:
         f.write(result["ciphertext"])
-    # Save key + nonce
+    # Save key + nonce & Encrypt .ezrm file
     with open(ezrm_path, "wb") as f:
-        f.write(result["nonce"] + result["key"])
+        ezrm_encrypted = encrypt_ezrm(result["nonce"] + result["key"])
+        f.write(ezrm_encrypted)
     # Save deletion policy
     with open(ezrd_path, "w") as f:
         json.dump(ezrd, f)
 
     # EZRA container, key/nonce file, and deletion policy file timestomped
-    
     pad_file_reasonably(Path(ezra_path)) # Pad .ezra according to next nearest increment
     pad_file_to_exact_size(Path(ezrm_path), 4000) # Pad .ezrm to 4KB
     pad_file_to_exact_size(Path(ezrd_path), 4000) # Pad .ezrd to 4KB
-    timestomp([Path(ezra_path), Path(ezrm_path), Path(ezrd_path)])
+    timestomp([Path(ezra_path), Path(ezrm_path), Path(ezrd_path), Path(ezrp_proof_path), Path(ezrp_public_path)])
 
     print(f"[UPLOAD] Stored file with ID: {file_id}")
 
@@ -101,22 +110,22 @@ def upload():
     return jsonify({ "secret": secret_b64 })
 
 
+
 def delayed_delete(file_id, delay=5):
     time.sleep(delay)
-    for ext in [".ezra", ".ezrm", ".ezrd"]:
-        path = os.path.join(UPLOAD_FOLDER, f"{file_id}{ext}")
-        try:
-            os.remove(path)
-            print(f"[CLEANUP] Deleted: {path}")
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            print(f"[!] Error deleting {path}: {e}")
+    try:
+        glob.glob(f"{UPLOAD_FOLDER}/{file_id}.*")
+        print(f"[CLEANUP] Deleted: {file_id}.*")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"[!] Error deleting {file_id}: {e}")
+        
 
 @app.route("/download", methods=["POST"])
 def download():
     data = request.get_json()
-    
+
     proof = data.get("proof")
     public = data.get("public")
 
@@ -127,12 +136,14 @@ def download():
     if not isinstance(public, list) or not public or not all(isinstance(p, str) for p in public):
         return "Invalid public format", 400
 
-    # Schema-level validation of the proof object
     required_keys = {"pi_a", "pi_b", "pi_c", "protocol", "curve"}
     if not required_keys.issubset(proof.keys()):
         return "Malformed proof structure", 400
 
-    # Write files for snarkjs to read
+    # Extract file_id from public input
+    file_id = public[0]
+
+    # Save incoming proof/public to temp files
     tmp_proof_path = "working_dir/tmp_proof.json"
     tmp_public_path = "working_dir/tmp_public.json"
 
@@ -143,7 +154,7 @@ def download():
         with open(tmp_public_path, "w") as pubf:
             json.dump(public, pubf)
 
-        # Run snarkjs verify
+        # Re-verify the proof using snarkjs
         subprocess.run([
             "snarkjs", "groth16", "verify",
             "working_dir/verification_key.json",
@@ -153,11 +164,10 @@ def download():
 
     except subprocess.CalledProcessError:
         return "Invalid proof", 403
-
-    except Exception:
+    except Exception as e:
+        print(f"Exception occurred during proof verification: {e}")
         return "Server error during proof verification", 500
 
-    file_id = public[0]
     ezra_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezra")
     ezrm_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrm")
     ezrd_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrd")
@@ -167,12 +177,11 @@ def download():
     if not os.path.exists(ezra_path) or not os.path.exists(ezrm_path):
         return "File not found", 404
 
-    # Load .ezrd metadata if it exists
     should_delete = False
     if os.path.exists(ezrd_path):
         with open(ezrd_path, "rb") as f:
             try:
-                raw = f.read().rstrip(b'\x00')  # Remove null padding
+                raw = f.read().rstrip(b'\x00')
                 ezrd = json.loads(raw.decode("utf-8"))
                 should_delete = ezrd.get("delete_on_download", False)
             except Exception as e:
@@ -182,13 +191,13 @@ def download():
         print(f"[→] Deletion policy active for {file_id} — scheduling deletion in background")
         threading.Thread(target=delayed_delete, args=(file_id,), daemon=True).start()
 
-
     with open(ezra_path, "rb") as f:
         ciphertext = f.read()
+
     with open(ezrm_path, "rb") as f:
-        ezrm = f.read()
-        nonce = ezrm[:12]
-        key = ezrm[12:].rstrip(b"\x00")  # ← Trim padding!
+        decrypted = decrypt_ezrm(f.read().rstrip(b"\x00"))
+        nonce = decrypted[:12]
+        key = decrypted[12:].rstrip(b"\x00")
 
     return jsonify({
         "ciphertext": base64.b64encode(ciphertext).decode(),

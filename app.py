@@ -114,10 +114,9 @@ def upload():
 def delayed_delete(file_id, delay=5):
     time.sleep(delay)
     try:
-        glob.glob(f"{UPLOAD_FOLDER}/{file_id}.*")
-        print(f"[CLEANUP] Deleted: {file_id}.*")
-    except FileNotFoundError:
-        pass
+        for f in glob.glob(f"{UPLOAD_FOLDER}/{file_id}.*"):
+            os.remove(f)
+            print(f"[CLEANUP] Deleted: {f}")
     except Exception as e:
         print(f"[!] Error deleting {file_id}: {e}")
         

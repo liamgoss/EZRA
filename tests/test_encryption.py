@@ -1,35 +1,18 @@
-from pathlib import Path
-import base64
-import os, sys
+import unittest
+from encryption import encrypt_file, decrypt_file
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+class EncryptionTests(unittest.TestCase):
+    def test_encrypt_decrypt_roundtrip(self):
+        message = b"hello world"
+        result = encrypt_file(message)
+        decrypted = decrypt_file(result["ciphertext"], result["key"], result["nonce"])
+        self.assertEqual(decrypted, message)
 
-from storage import encrypt_files_to_ezra, decrypt_ezra_to_files
+    def test_different_ciphertext_each_time(self):
+        msg = b"secret"
+        res1 = encrypt_file(msg)
+        res2 = encrypt_file(msg)
+        self.assertNotEqual(res1["ciphertext"], res2["ciphertext"])
 
-# === ENCRYPT ===
-encrypted = encrypt_files_to_ezra([Path("test1.txt"), Path("secret.png")])
-
-with open("test_out.ezra", "wb") as f:
-    f.write(encrypted["ciphertext"])
-
-with open("test_out.ezrm", "wb") as f:
-    f.write(encrypted["nonce"] + encrypted["key"])
-
-print("Encrypted .ezra and .ezrm written.")
-print("Key:", base64.b64encode(encrypted["key"]).decode())
-print("Nonce:", base64.b64encode(encrypted["nonce"]).decode())
-
-# === DECRYPT ===
-ciphertext = Path("test_out.ezra").read_bytes()
-ezrm = Path("test_out.ezrm").read_bytes()
-nonce = ezrm[:12]
-key = ezrm[12:]
-
-output_dir = Path("recovered")
-output_dir.mkdir(exist_ok=True)
-
-extracted_files = decrypt_ezra_to_files(ciphertext, key, nonce, output_dir)
-
-print(f"[✓] Decrypted and extracted {len(extracted_files)} file(s):")
-for f in extracted_files:
-    print(" -", f.name)
+if __name__ == "__main__":
+    unittest.main()

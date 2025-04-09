@@ -1,6 +1,11 @@
 import unittest
 from encryption import encrypt_file, decrypt_file
 
+from dotenv import load_dotenv
+import os
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', 'server/', '.env')
+load_dotenv(dotenv_path)
+
 class EncryptionTests(unittest.TestCase):
     def test_encrypt_decrypt_roundtrip(self):
         message = b"hello world"

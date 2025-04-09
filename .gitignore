@@ -3,31 +3,24 @@
 venv/ 
 wslvenv/
 __pycache__/
-".vscode/" 
+.vscode/
 documents/
 scratch/
 qaptools/
 inputs/
 backup/
+build/
 node_modules/
 # Dont track uploads, but keep uploads/ empty dir tracked
-uploads/*
-!uploads/.gitkeep
+server/uploads/*
+!server/uploads/.gitkeep
 # Ignore specific file types ONLY inside working_dir/
-working_dir/*.r1cs
-working_dir/*.wtns
-working_dir/*.json
-working_dir/*.zkey
-working_dir/*.ptau
-working_dir/*.sym
-working_dir/proof.json
-working_dir/public.json
-# Ignore snarkjs-generated WASM/JS
-working_dir/poseidon_preimage_js/
+server/working_dir/*
+!server/working_dir/.gitkeep
 
-!tests/*.py
-tests/*
-tests/recovered/
+server/tests/*
+!server/tests/*.py
+
 
 !client/*.py
 client/*
@@ -42,3 +35,6 @@ client/tmp/
 *.wtns
 *.r1cs
 *.sym
+
+*.log
+*/*.log

@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "circomlibjs": "^0.1.7"
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.5"
   },
   "name": "ezra",
   "version": "1.0.0",
@@ -9,7 +10,6 @@
   "directories": {
     "test": "tests"
   },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

@@ -3,7 +3,7 @@ import json
 import subprocess
 
 
-WORKING_DIR = os.path.join(os.path.dirname(__file__), '..', 'working_dir')
+WORKING_DIR = os.path.join(os.path.dirname(__file__), 'working_dir')
 
 def pad_base64(s: str) -> str:
     return s + '=' * (-len(s) % 4)

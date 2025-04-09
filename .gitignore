@@ -1,5 +1,6 @@
 .env
 .coverage
+.DS_Store
 venv/ 
 wslvenv/
 __pycache__/

@@ -2,7 +2,7 @@
 import toga, platform, subprocess, os
 from toga.style import Pack
 from toga.style.pack import COLUMN, ROW
-from download import download_file
+from ezra.download import download_file
 
 
 class EzraApp(toga.App):

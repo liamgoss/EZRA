@@ -1,7 +1,7 @@
 import argparse, base64, json, os, inspect, sys
 
-from download import download_file
-from utils import generate_proof, pad_base64
+from ezra.download import download_file
+from ezra.utils import generate_proof, pad_base64
 
 
 def main():

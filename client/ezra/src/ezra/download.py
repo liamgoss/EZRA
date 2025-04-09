@@ -2,8 +2,8 @@ import base64, requests, magic, uuid, traceback
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from werkzeug.utils import secure_filename
 
-from utils import generate_proof, pad_base64
-from config import SERVER_URL
+from ezra.utils import generate_proof, pad_base64
+from ezra.config import SERVER_URL
 
 
 def download_file(secret_b64, dir, logger=print):

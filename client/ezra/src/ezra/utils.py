@@ -1,12 +1,41 @@
-import os
-import json
-import subprocess
+import os, sys, json, subprocess, platform
 
 
 WORKING_DIR = os.path.join(os.path.dirname(__file__), 'working_dir')
 
 def pad_base64(s: str) -> str:
     return s + '=' * (-len(s) % 4)
+
+
+def get_embedded_node_path():
+    base = getattr(sys, "_MEIPASS", os.path.dirname(__file__))  # Works both dev and packaged
+    bin_dir = os.path.join(base, "resources", "node", "bin")
+
+    system = platform.system().lower()
+    arch = platform.machine().lower()
+
+    if system == "darwin":
+        if arch in ("arm64", "aarch64"):
+            return os.path.join(bin_dir, "macos_arm", "node")
+        elif arch in ("x86_64", "amd64"):
+            return os.path.join(bin_dir, "macos_x64", "node")
+    elif system == "linux":
+        if arch in ("arm64", "aarch64"):
+            return os.path.join(bin_dir, "linux_arm", "node")
+        elif arch in ("x86_64", "amd64"):
+            return os.path.join(bin_dir, "linux_x64", "node")
+    elif system == "windows":
+        return os.path.join(bin_dir, "windows", "node.exe")
+
+    raise RuntimeError(f"Unsupported platform or architecture: {system} {arch}")
+
+def get_node_modules_path():
+    base = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
+    return os.path.join(base, "resources", "node", "node_modules")
+
+def get_snarkjs_path():
+    return os.path.join(get_node_modules_path(), "snarkjs", "cli.js")
+
 
 def poseidon_hash(secret: int) -> int:
     # Uses circomlibjs' async Poseidon factory
@@ -22,12 +51,13 @@ def poseidon_hash(secret: int) -> int:
 
     try:
         result = subprocess.run(
-            ["node", "-e", script],
+            [get_embedded_node_path(), "-e", script],
             capture_output=True,
             text=True,
             check=True,
-            env={**os.environ, "NODE_PATH": "./node_modules"}
+            env={**os.environ, "NODE_PATH": get_node_modules_path()}
         )
+
         return result.stdout.strip()
 
     except subprocess.CalledProcessError as e:
@@ -59,7 +89,9 @@ def generate_proof(secret: int, logger=print) -> dict:
 
     # Step 2: Generate witness
     subprocess.run([
-        "snarkjs", "wtns", "calculate",
+        get_embedded_node_path(),
+        os.path.join(get_node_modules_path(), "snarkjs", "cli.js"),
+        "wtns", "calculate",
         os.path.join(WORKING_DIR, "poseidon_preimage_js", "poseidon_preimage.wasm"),
         input_path,
         witness_path
@@ -68,12 +100,15 @@ def generate_proof(secret: int, logger=print) -> dict:
 
     # Step 3: Generate proof
     subprocess.run([
-        "snarkjs", "groth16", "prove",
+        get_embedded_node_path(),
+        os.path.join(get_node_modules_path(), "snarkjs", "cli.js"),
+        "groth16", "prove",
         os.path.join(WORKING_DIR, "poseidon_preimage.zkey"),
         witness_path,
         proof_path,
         public_path
     ], check=True)
+
 
 
     

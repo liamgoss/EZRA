@@ -1,41 +1,74 @@
+# Environment and OS
 .env
-.coverage
 .DS_Store
-venv/ 
+venv/
 wslvenv/
 __pycache__/
+*.pyc
+
+# IDE and tools
 .vscode/
+
+# Coverage, test artifacts, and logs
+.coverage
+*.log
+*/*.log
+
+# Dev scratch folders (user-defined)
 documents/
 scratch/
 qaptools/
 inputs/
 backup/
+
+# Build artifacts
 build/
-node_modules/
-# Dont track uploads, but keep uploads/ empty dir tracked
-server/uploads/*
-!server/uploads/.gitkeep
-# Ignore specific file types ONLY inside working_dir/
-server/working_dir/*
-!server/working_dir/.gitkeep
-
-server/tests/*
-!server/tests/*.py
-
-
-!client/*.py
-client/*
-client/tmp/
-
-*.ezra
-*.ezrm
-*.pyc
-*.log
-# Sanity ignores just in case they are generated outside of working_dir and I didn't catch it
+dist/
 *.zkey
 *.wtns
 *.r1cs
 *.sym
 
-*.log
-*/*.log
+# Node dependencies
+node_modules/
+client/ezra/src/ezra/resources/node/bin/
+client/ezra/src/ezra/resources/node/package-lock.json
+client/ezra/src/ezra/resources/node/package.json
+
+# Briefcase outputs
+client/ezra/.briefcase/
+client/ezra/build/
+client/ezra/dist/
+client/ezra/logs/
+client/ezra/*.app/
+client/ezra/*.exe/
+client/ezra/*.dmg/
+client/ezra/*.msi/
+
+# Temp and working files
+client/ezra/src/ezra/tmp/
+client/ezra/src/ezra/working_dir/
+
+# Optional: Skip generated dist-info
+client/ezra/src/ezra/ezra.dist-info/
+
+# Skip top-level client/ unless otherwise specified
+client/__pycache__/
+client/*.py
+
+# Public upload files
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Only keep real tests
+server/tests/*
+!server/tests/*.py
+
+# File containers
+*.ezra
+*.ezrm
+
+
+# Working dir
+server/working_dir/
+!server/working_dir/.gitkeep

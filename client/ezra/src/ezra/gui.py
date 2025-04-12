@@ -8,65 +8,66 @@ from ezra.download import download_file
 class EzraApp(toga.App):
 
     def startup(self):
-        # Main container with outer padding
-        self.main_box = toga.Box(style=Pack(direction=COLUMN, padding=20))
+        # Outer box constrained to 600px width
+        self.main_box = toga.Box(
+            style=Pack(direction=COLUMN, padding=20, alignment="center", width=600)
+        )
 
         # Input Section
-        input_section = toga.Box(style=Pack(direction=COLUMN, padding_bottom=10))
+        input_section = toga.Box(style=Pack(direction=COLUMN, padding_bottom=10, width=600))
         input_section.add(toga.Label("Paste your EZRA secret:", style=Pack(padding_bottom=5)))
 
         self.secret_input = toga.TextInput(
             placeholder="Paste your EZRA secret here",
-            style=Pack(padding_bottom=10)
+            style=Pack(padding_bottom=10, width=600)
         )
         input_section.add(self.secret_input)
 
         # Folder selection
-        folder_section = toga.Box(style=Pack(direction=ROW, padding_bottom=10))
-        self.destination_label = toga.Label("Selected folder: None", style=Pack(flex=1, padding_right=10))
+        folder_section = toga.Box(style=Pack(direction=ROW, padding_bottom=10, width=600))
+        self.destination_label = toga.Label(
+            "Selected folder: None",
+            style=Pack(flex=1, padding_right=10)
+        )
         folder_button = toga.Button("Select Folder", on_press=self.choose_save_folder)
         folder_section.add(self.destination_label)
         folder_section.add(folder_button)
-
         input_section.add(folder_section)
 
         # Download button
-        download_button = toga.Button("Download", on_press=self.handle_download, style=Pack(padding_bottom=10))
+        download_button = toga.Button("Download", on_press=self.handle_download,
+                                    style=Pack(padding_bottom=10, width=600))
         input_section.add(download_button)
 
-        # Status output
-        self.status_label = toga.Label("", style=Pack(padding_bottom=5, font_weight="bold"))
+        # Status label
+        self.status_label = toga.Label(
+            "", style=Pack(padding_bottom=5, font_weight="bold", width=600)
+        )
         input_section.add(self.status_label)
 
-        # Output Section (log)
+        # Log output section (fixed width, scrollable)
         self.log_output = toga.MultilineTextInput(
-            style=Pack(
-                height=120,
-                width=600,       # Constrain width to prevent window overflow
-                padding=5
-            ),
+            style=Pack(height=120, width=600, padding=5),
             readonly=True
         )
         self.log_output.visible = True
 
-        log_container = toga.Box(style=Pack(direction=COLUMN, width=600))
-        log_container.add(self.log_output)
-
         self.toggle_button = toga.Button(
             "Hide Details",
             on_press=self.toggle_details,
-            style=Pack(padding_top=5)
+            style=Pack(padding_top=5, width=600)
         )
 
-        # Assemble everything
+        # Add to main box
         self.main_box.add(input_section)
         self.main_box.add(self.toggle_button)
-        self.main_box.add(log_container)
+        self.main_box.add(self.log_output)
 
-        # Set up main window
+        # Set up window
         self.main_window = toga.MainWindow(title="EZRA Client")
         self.main_window.content = self.main_box
         self.main_window.show()
+
 
 
     # Platform-specific folder selection

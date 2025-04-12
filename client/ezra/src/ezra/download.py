@@ -21,6 +21,7 @@ def download_file(secret_b64, dir, logger=print):
 
         secret_int = int.from_bytes(secret_bytes, 'big')
         log(f"[✓] Secret parsed and converted to int: {secret_int}")
+        log(f"[✓] Key parsed and converted to int: {int.from_bytes(key_bytes, 'big')}")
     except Exception as e:
         log(f"[!] Invalid base64 composite secret: {e}")
         return None

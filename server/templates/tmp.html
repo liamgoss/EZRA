@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>EZRA - Test Upload</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; }
+    input[type="file"] { margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>EZRA: Upload Test</h1>
+  <input type="file" id="fileInput" />
+  <br>
+  <button id="uploadBtn">Upload File</button>
+
+  <h2>Output</h2>
+  <pre id="output"></pre>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const output = document.getElementById("output");
+
+    function log(obj) {
+      output.textContent += JSON.stringify(obj, null, 2) + "\n\n";
+    }
+
+    function getRandomBytes(length) {
+      const array = new Uint8Array(length);
+      window.crypto.getRandomValues(array);
+      return array;
+    }
+
+    function bufferToHex(buffer) {
+      return Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function encryptFile(file, key, iv) {
+      const keyObj = await crypto.subtle.importKey(
+        'raw', key, { name: 'AES-GCM' }, false, ['encrypt']
+      );
+      const fileData = await file.arrayBuffer();
+      const ciphertext = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv }, keyObj, fileData
+      );
+      return new Uint8Array(ciphertext);
+    }
+
+    document.getElementById("uploadBtn").onclick = async () => {
+      const file = fileInput.files[0];
+      if (!file) return alert("Please select a file");
+
+      const aesKey = getRandomBytes(32); // 256-bit AES key
+      const iv = getRandomBytes(12);     // 96-bit nonce for AES-GCM
+      const secret = getRandomBytes(32); // 256-bit ZK secret
+
+      log({ aes_key_hex: bufferToHex(aesKey) });
+      log({ secret_hex: bufferToHex(secret) });
+
+      const encrypted = await encryptFile(file, aesKey, iv);
+      log({ encrypted_preview: bufferToHex(encrypted.slice(0, 32)) });
+
+      // Create composite secret
+      const composite = new Uint8Array(secret.length + aesKey.length);
+      composite.set(secret, 0);
+      composite.set(aesKey, secret.length);
+      const composite_b64 = btoa(String.fromCharCode(...composite));
+      log({ composite_secret_b64: composite_b64 });
+
+      // Send to backend
+      const formData = new FormData();
+      formData.append("file", new Blob([encrypted]), file.name);
+      formData.append("secret", btoa(String.fromCharCode(...secret))); // backend expects base64
+      formData.append("expire_days", 7);
+      formData.append("delete_after_download", "true");
+
+      const res = await fetch("/upload", { method: "POST", body: formData });
+      const json = await res.json();
+      log({ server_response: json });
+    };
+  </script>
+</body>
+</html>

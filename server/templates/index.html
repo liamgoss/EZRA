@@ -9,16 +9,15 @@
   <header>
     <h1>EZRA</h1>
     <nav>
-      <a href="#">About</a>
-      <a href="#">Public Mode</a>
-      <a href="#">Enterprise</a>
+      <a href="/about">About</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/privacy">Privacy Policy</a>
     </nav>
   </header>
 
   <main>
     <h2>Ephemeral Zero-Knowledge Relay Archive</h2>
-    <p>Anonymous. Secure. Temporary.</p>
-    
+
     <form id="uploadForm">
       <label for="fileUpload" id="dropZone">
         <input type="file" name="file" id="fileUpload" hidden multiple>
@@ -70,6 +69,37 @@
         <button id="closeSecretModal" disabled>Close (5)</button>
       </div>
     </div>
+
+
+    <section id="ezraSummary" class="info-card">
+      <h3>What is EZRA?</h3>
+      <p><strong>EZRA</strong> (Ephemeral Zero-Knowledge Relay Archive) is a secure file dropbox for those who can’t afford to be tracked.</p>
+    
+      <div class="info-grid">
+        <div><strong>Zero-Knowledge Proof Access:</strong> No usernames, no passwords, no identity storage.</div>
+        <div><strong>AES-256-GCM Encrypted Files:</strong> Only you and the recipient can decrypt.</div>
+        <div><strong>Ephemeral by Default:</strong> Files auto-delete. No logs. No IPs. No metadata.</div>
+        <!--<div><strong>Public Mode:</strong> Anonymous, one-way dropbox with full verifiability.</div>
+        <div><strong>Enterprise Mode:</strong> RBAC, optional logging, configurable retention for internal deployments.</div>-->
+      </div>
+    
+      <p class="tagline"><em>Open Source. Verifiable. Trustless by Design.</em></p>
+    
+      <p><strong>Built for:</strong></p>
+      <div class="audience-grid">
+        <div>Journalists and whistleblowers</div>
+        <div>Incident response and security teams</div>
+        <div>Privacy advocates and NGOs</div>
+        <div>Anyone who needs plausible deniability and zero data residue</div>
+      </div>
+
+      <p class="deploy-tagline"><strong>Deploy in 5 minutes. No accounts. No trust required.</strong></p>
+    </section>
+
+    
+    <p>Anonymous. Secure. Temporary.</p>
+    
+    
 
   </main>
   <script>

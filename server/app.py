@@ -26,10 +26,25 @@ app.config['MAX_FILE_COUNT'] = MAX_FILE_COUNT
 
 
 
+# HTML pages to be served
 
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
+
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+@app.route("/terms")
+def terms():
+    return render_template("terms.html")
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+# Core EZRA logic
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -208,4 +223,4 @@ def download():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=5001)
+    app.run(host="0.0.0.0", debug=True, port=5000)

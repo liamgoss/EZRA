@@ -96,3 +96,84 @@ body {
     padding: 1rem;
     font-family: monospace;
   }
+
+  .info-card {
+    background-color: #f8f8fa;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    margin: 2rem auto;
+    font-size: 1rem;
+    max-width: 800px;
+  }
+  
+  .info-card h3 {
+    text-align: center;
+    font-size: 1.6rem;
+    margin-bottom: 1rem;
+  }
+  
+  .info-card p {
+    margin: 1rem 0;
+    line-height: 1.6;
+  }
+  
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .info-grid div {
+    background: #ffffff;
+    padding: 1rem;
+    border-left: 4px solid #444;
+    border-radius: 6px;
+    line-height: 1.5;
+  }
+  
+  .tagline {
+    text-align: center;
+    font-style: italic;
+    margin: 1.5rem 0;
+    color: #444;
+  }
+  
+
+  .audience-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem 1.5rem;
+    margin: 1.5rem 0 2rem;
+    font-size: 1rem;
+    padding-left: 0.25rem;
+  }
+  
+  .audience-grid div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    padding: 0.75rem 1rem;
+    min-height: 80px;
+    text-align: center;
+    border-left: 4px solid #666;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+  
+  .deploy-tagline {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.05rem;
+    margin-top: 2rem;
+  }
+
+
+  @media (max-width: 600px) {
+    .audience-grid {
+      grid-template-columns: 1fr;
+    }
+  }

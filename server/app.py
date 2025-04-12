@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, after_this_request
 from storage import encrypt_files_to_ezra, timestomp, pad_file_reasonably, pad_file_to_exact_size
 from encryption import encrypt_ezrm, decrypt_ezrm
 from zk_utils import generate_secret, get_commitment
@@ -176,12 +176,16 @@ def download():
         except Exception as e:
             print(f"[!] Failed to parse .ezrd for {file_id}: {e}")
 
-    if should_delete:
-        print(f"[→] Deletion policy active for {file_id} — scheduling deletion in background")
-        threading.Thread(target=delayed_delete, args=(file_id,), daemon=True).start()
-
+    # Load ciphertext before scheduling deletion
     with open(ezra_path, "rb") as f:
-        ciphertext = f.read()
+        ciphertext = f.read().rstrip(b'\x00')
+
+    if should_delete:
+        @after_this_request
+        def schedule_deletion(response):
+            print(f"[→] Deletion policy active for {file_id} — will delete after response")
+            threading.Thread(target=delayed_delete, args=(file_id,), daemon=True).start()
+            return response
 
     return jsonify({
         "ciphertext": base64.b64encode(ciphertext).decode()

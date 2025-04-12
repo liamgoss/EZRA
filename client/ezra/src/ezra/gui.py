@@ -8,9 +8,14 @@ from ezra.download import download_file
 class EzraApp(toga.App):
 
     def startup(self):
-        # Outer box constrained to 600px width
+        # Outer container: centers the fixed-width box
+        self.outer_box = toga.Box(
+            style=Pack(direction=COLUMN, alignment="center", flex=1, padding=20)
+        )
+
+        # Fixed-width main column for all content
         self.main_box = toga.Box(
-            style=Pack(direction=COLUMN, padding=20, alignment="center", width=600)
+            style=Pack(direction=COLUMN, width=600)
         )
 
         # Input Section
@@ -45,28 +50,33 @@ class EzraApp(toga.App):
         )
         input_section.add(self.status_label)
 
-        # Log output section (fixed width, scrollable)
+        # Log output (fixed width, scrollable)
         self.log_output = toga.MultilineTextInput(
             style=Pack(height=120, width=600, padding=5),
             readonly=True
         )
         self.log_output.visible = True
 
+        # Toggle visibility of log
         self.toggle_button = toga.Button(
             "Hide Details",
             on_press=self.toggle_details,
             style=Pack(padding_top=5, width=600)
         )
 
-        # Add to main box
+        # Add sections to main box
         self.main_box.add(input_section)
         self.main_box.add(self.toggle_button)
         self.main_box.add(self.log_output)
 
-        # Set up window
+        # Add fixed-width main box to centered outer container
+        self.outer_box.add(self.main_box)
+
+        # Create and show window
         self.main_window = toga.MainWindow(title="EZRA Client")
-        self.main_window.content = self.main_box
+        self.main_window.content = self.outer_box
         self.main_window.show()
+
 
 
 

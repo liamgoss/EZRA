@@ -56,9 +56,6 @@
       </div>
     </div>
 
-    <!---<p id="responseMsg"></p>-->
-
-    <!---<button id="contactEnterprise">Contact Enterprise Sales</button>-->
 
     <div id="secretModal" class="modal hidden">
       <div class="modal-content">
@@ -71,6 +68,13 @@
       </div>
     </div>
 
+    <div id="loadingModal" class="modal hidden">
+      <div class="modal-content" style="text-align: center;">
+        <div class="spinner" style="margin-bottom: 1rem;"></div>
+        <p>Encrypting and uploading your files...</p>
+      </div>
+    </div>
+
 
     <section id="ezraSummary" class="info-card">
       <h3>What is EZRA?</h3>
@@ -80,8 +84,6 @@
         <div><strong>Zero-Knowledge Proof Access:</strong> No usernames, no passwords, no identity storage.</div>
         <div><strong>AES-256-GCM Encrypted Files:</strong> Only you and the recipient can decrypt.</div>
         <div><strong>Ephemeral by Default:</strong> Files auto-delete. No logs. No IPs. No metadata.</div>
-        <!--<div><strong>Public Mode:</strong> Anonymous, one-way dropbox with full verifiability.</div>
-        <div><strong>Enterprise Mode:</strong> RBAC, optional logging, configurable retention for internal deployments.</div>-->
       </div>
     
       <p class="tagline"><em>Open Source. Verifiable. Trustless by Design.</em></p>
@@ -208,6 +210,9 @@
     confirmUpload.addEventListener("click", async () => {
       if (pendingFiles.length === 0) return alert("No file selected");
 
+      confirmUpload.disabled = true;
+      confirmUpload.textContent = "Encrypting & Uploading...";
+
       // Create ZIP archive in browser
       const zipData = await createZipArchive(pendingFiles);
 
@@ -269,6 +274,8 @@
       } finally {
         modal.classList.add("hidden");
         pendingFiles = [];
+        confirmUpload.disabled = false;
+        confirmUpload.textContent = "Submit";
       }
     });
   

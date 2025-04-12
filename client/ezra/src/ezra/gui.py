@@ -38,18 +38,19 @@ class EzraApp(toga.App):
         self.status_label = toga.Label("", style=Pack(padding_bottom=5, font_weight="bold"))
         input_section.add(self.status_label)
 
-        # Output Section
+        # Output Section (log)
         self.log_output = toga.MultilineTextInput(
             style=Pack(
                 height=120,
-                flex=1,
-                overflow="auto",
-                width=1,              # forces wrapping inside container
-                max_width=600         # optional: limit total width growth
+                width=600,       # Constrain width to prevent window overflow
+                padding=5
             ),
             readonly=True
         )
         self.log_output.visible = True
+
+        log_container = toga.Box(style=Pack(direction=COLUMN, width=600))
+        log_container.add(self.log_output)
 
         self.toggle_button = toga.Button(
             "Hide Details",
@@ -60,12 +61,13 @@ class EzraApp(toga.App):
         # Assemble everything
         self.main_box.add(input_section)
         self.main_box.add(self.toggle_button)
-        self.main_box.add(self.log_output)
+        self.main_box.add(log_container)
 
         # Set up main window
         self.main_window = toga.MainWindow(title="EZRA Client")
         self.main_window.content = self.main_box
         self.main_window.show()
+
 
     # Platform-specific folder selection
     def open_folder(self, path):

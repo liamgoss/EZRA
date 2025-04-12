@@ -39,7 +39,16 @@ class EzraApp(toga.App):
         input_section.add(self.status_label)
 
         # Output Section
-        self.log_output = toga.MultilineTextInput(style=Pack(height=120), readonly=True)
+        self.log_output = toga.MultilineTextInput(
+            style=Pack(
+                height=120,
+                flex=1,
+                overflow="auto",
+                width=1,              # forces wrapping inside container
+                max_width=600         # optional: limit total width growth
+            ),
+            readonly=True
+        )
         self.log_output.visible = True
 
         self.toggle_button = toga.Button(

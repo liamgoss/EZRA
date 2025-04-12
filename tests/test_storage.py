@@ -5,6 +5,10 @@ from pathlib import Path
 from zipfile import ZipFile
 from storage import encrypt_files_to_ezra, decrypt_ezra_to_files, pad_file_to_exact_size, timestomp, pad_file_reasonably
 
+from dotenv import load_dotenv
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', 'server/', '.env')
+load_dotenv(dotenv_path)
+
 class StorageTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()

@@ -41,7 +41,7 @@ def download_file(secret_b64, dir, logger=print):
 
     # Step 2: Send proof and receive file
     log("[→] Sending proof to server...")
-    res = requests.post(f"{SERVER_URL}/download", json=payload)
+    res = requests.post(f"{SERVER_URL}/download", json=payload, verify=False)
 
     if res.status_code != 200:
         log(f"[!] Download failed: {res.status_code} - {res.text}")

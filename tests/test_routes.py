@@ -9,6 +9,9 @@ from app import app, UPLOAD_FOLDER, delayed_delete
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from encryption import get_master_key, encrypt_ezrm
 from pathlib import Path
+from dotenv import load_dotenv
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', 'server/', '.env')
+load_dotenv(dotenv_path)
 
 class FlaskRouteTests(unittest.TestCase):
     def setUp(self):

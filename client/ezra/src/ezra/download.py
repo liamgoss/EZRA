@@ -7,19 +7,25 @@ from ezra.config import SERVER_URL
 
 
 def download_file(secret_b64, dir, logger=print):
-    def log(msg):  # nested logger fallback
+    def log(msg):
         if logger:
             logger(msg)
 
     try:
-        secret_bytes = base64.b64decode(pad_base64(secret_b64))
+        composite_bytes = base64.b64decode(pad_base64(secret_b64))
+        if len(composite_bytes) != 64:
+            log(f"[!] Composite secret must be 64 bytes (32 secret + 32 AES key), got {len(composite_bytes)}")
+            return None
+        secret_bytes = composite_bytes[:32]
+        key_bytes = composite_bytes[32:]
+
         secret_int = int.from_bytes(secret_bytes, 'big')
-        log(f"[✓] Secret decoded into integer: {secret_int}")
+        log(f"[✓] Secret parsed and converted to int: {secret_int}")
     except Exception as e:
-        log(f"[!] Invalid base64 secret: {e}")
+        log(f"[!] Invalid base64 composite secret: {e}")
         return None
 
-    # Step 1: Generate proof
+    # Step 1: Generate proof from secret
     try:
         log("[⋯] Generating zero-knowledge proof...")
         proof_data = generate_proof(secret_int, logger=logger)
@@ -32,7 +38,7 @@ def download_file(secret_b64, dir, logger=print):
         "public": proof_data["public"]
     }
 
-    # Step 2: Send proof to server
+    # Step 2: Send proof and receive file
     log("[→] Sending proof to server...")
     res = requests.post(f"{SERVER_URL}/download", json=payload)
 
@@ -40,21 +46,26 @@ def download_file(secret_b64, dir, logger=print):
         log(f"[!] Download failed: {res.status_code} - {res.text}")
         return None
 
-    data = res.json()
-    log("[✓] Encrypted file received")
+    try:
+        data = res.json()
+        encrypted_bytes = base64.b64decode(data["ciphertext"])
+        nonce = encrypted_bytes[:12]
+        ciphertext = encrypted_bytes[12:]
+
+        if len(nonce) != 12:
+            log(f"[!] Invalid nonce length: {len(nonce)} (expected 12)")
+        if len(key_bytes) != 32:
+            log(f"[!] Invalid AES key length: {len(key_bytes)} (expected 32)")
+
+        log("[✓] File and nonce received")
+    except Exception as e:
+        log(f"[!] Failed to parse ciphertext or nonce: {e}")
+        return None
 
     # Step 3: Decrypt
     try:
-        log("[⋯] Decrypting...")
-        ciphertext = base64.b64decode(data["ciphertext"]).rstrip(b'\x00')
-        nonce = base64.b64decode(data["nonce"])
-        if len(nonce) != 12:
-            log(f"[!] Warning: Nonce is {len(nonce)} bytes, expected 12")
-        key = base64.b64decode(data["key"])
-        if len(key) != 32:
-            log(f"[!] Warning: AES key is {len(key)} bytes, expected 32")
-
-        aesgcm = AESGCM(key)
+        log("[⋯] Decrypting file...")
+        aesgcm = AESGCM(key_bytes)
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
         log("[✓] Decryption successful")
     except Exception as e:
@@ -63,7 +74,7 @@ def download_file(secret_b64, dir, logger=print):
         log(f"[!] Traceback:\n{traceback_str}")
         return None
 
-    # Step 4: Save as .zip (Once decrypted, .ezra is just a zip file)
+    # Step 4: Save decrypted archive (EZRA = encrypted ZIP)
     output_filename = secure_filename(f"{uuid.uuid4()}.zip")
     output_path = f"{dir}/{output_filename}"
 
@@ -73,5 +84,6 @@ def download_file(secret_b64, dir, logger=print):
         log(f"[✓] File saved as: {output_path}")
         return output_path
     except Exception as e:
-        log(f"[!] Failed to write file: {e}")
+        log(f"[!] Failed to save decrypted archive: {e}")
         return None
+

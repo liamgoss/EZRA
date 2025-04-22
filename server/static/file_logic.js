@@ -4,8 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const dropZone = document.getElementById("dropZone");
     const confirmUpload = document.getElementById("confirmUpload");
     const deleteAfterDownload = document.getElementById("deleteAfterDownload");
-    const expirySelect = document.getElementById("expiryDays");
-    const customExpiryInput = document.getElementById("customExpiry");
+    const expirySelect = document.getElementById("expiryHours");
     const modal = document.getElementById("uploadOptionsModal");
   
     window.pendingFiles = [];
@@ -36,16 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dropZone.textContent = `Selected: ${names}`;
     });
   
-    // Expiry input toggle
-    expirySelect.addEventListener("change", () => {
-      if (expirySelect.value === "custom") {
-        customExpiryInput.classList.remove("hidden");
-        customExpiryInput.required = true;
-      } else {
-        customExpiryInput.classList.add("hidden");
-        customExpiryInput.required = false;
-      }
-    });
+    
   
     // Upload submit shows modal
     uploadForm.addEventListener("submit", (e) => {
@@ -99,16 +89,14 @@ document.addEventListener("DOMContentLoaded", () => {
         formData.append("secret", btoa(String.fromCharCode(...secret)));
   
         // Expiration
-        const selectedValue = expirySelect.value;
-        const expireDays = selectedValue === "custom"
-          ? parseInt(customExpiryInput.value)
-          : parseInt(selectedValue);
-        if (isNaN(expireDays) || expireDays < 1 || expireDays > 31) {
-          alert("Please enter a valid expiration between 1 and 31 days.");
-          return;
+        const expireHours = parseInt(expirySelect.value);
+
+        if (isNaN(expireHours) || expireHours < 1 || expireHours > 72) {
+        alert("Please enter a valid expiration between 1 and 168 hours.");
+        return;
         }
-  
-        formData.append("expire_days", expireDays);
+
+        formData.append("expire_hours", expireHours);
         formData.append("delete_after_download", deleteAfterDownload.checked);
 
         const { proof, public: publicSignals } = await generateProof(btoa(String.fromCharCode(...secret)));

@@ -1,30 +1,29 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, after_this_request
-from storage import encrypt_files_to_ezra, timestomp, pad_file_reasonably, pad_file_to_exact_size
-from encryption import encrypt_ezrm, decrypt_ezrm
+from storage import timestomp, pad_file_reasonably
 from zk_utils import poseidon_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from pathlib import Path
-import os, uuid, subprocess, base64, json, time, threading, shutil, glob
-
+import os, uuid, subprocess, base64, json, time, threading, shutil, glob, sqlite3
+from paths import UPLOAD_DIR, DB_DIR, ensure_directories
 
 
 load_dotenv()
-UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads/")
+ensure_directories()
+
 MAX_CONTENT_LENGTH_MB = int(os.getenv("MAX_CONTENT_LENGTH_MB", 50))
 MAX_FILE_COUNT = int(os.getenv("MAX_FILE_COUNT", 5))
 
 # Ensure the uploads directory exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(DB_DIR, exist_ok=True)
 
 # App config
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['UPLOAD_DIR'] = UPLOAD_DIR
+app.config['DB_DIR'] = DB_DIR
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH_MB * 1000 * 1000 # e.g. 50MB file size limit
 app.config['MAX_FILE_COUNT'] = MAX_FILE_COUNT
-
-
-
 
 # HTML pages to be served
 
@@ -89,35 +88,36 @@ def upload():
 
     # Save encrypted file
     f = files[0]
-    ezra_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezra")
+    ezra_path = os.path.join(app.config["UPLOAD_DIR"], f"{file_id}.ezra")
     f.save(ezra_path)
 
     # Save ZK proof and public signals
-    ezrp_proof_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.proof.json")
-    ezrp_public_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.public.json")
+    ezrp_proof_path = os.path.join(app.config["UPLOAD_DIR"], f"{file_id}.proof.json")
+    ezrp_public_path = os.path.join(app.config["UPLOAD_DIR"], f"{file_id}.public.json")
     with open(ezrp_proof_path, "w") as pf:
         json.dump(proof, pf)
     with open(ezrp_public_path, "w") as pubf:
         json.dump(public, pubf)
 
     # Handle expiration policy
-    expire_days = int(request.form.get("expire_days", 7))
+
+    expire_hours = int(request.form.get("expire_hours", 24))
+    actual_expire = expire_hours if expire_hours > 0 else 24
     delete_after_download = request.form.get("delete_after_download") == "true"
-    actual_expire_days = expire_days if expire_days > 0 else 7
+    
+    
 
-    ezrd = {
-        "expires_at": int(time.time()) + actual_expire_days * 86400,
-        "delete_on_download": delete_after_download or expire_days == 0
-    }
+    with sqlite3.connect(DB_DIR / "expirations.db") as db:
+        db.execute(
+            "INSERT OR REPLACE INTO expirations (file_id, expires_at, delete_on_download) VALUES (?, ?, ?)",
+            (file_id, int(time.time()) + actual_expire * 3600, int(delete_after_download))
+        )
 
-    ezrd_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezrd")
-    with open(ezrd_path, "w") as meta_file:
-        json.dump(ezrd, meta_file)
+    
 
     # Timestomp and pad all relevant files
     pad_file_reasonably(Path(ezra_path))
-    pad_file_to_exact_size(Path(ezrd_path), 4000)
-    timestomp([Path(ezra_path), Path(ezrd_path), Path(ezrp_proof_path), Path(ezrp_public_path)])
+    timestomp([Path(ezra_path), Path(ezrp_proof_path), Path(ezrp_public_path)])
 
     print(f"[UPLOAD] Stored file with ID: {file_id}")
 
@@ -143,7 +143,7 @@ def poseidon_endpoint():
 def delayed_delete(file_id, delay=5):
     time.sleep(delay)
     try:
-        for f in glob.glob(f"{UPLOAD_FOLDER}/{file_id}.*"):
+        for f in glob.glob(f"{UPLOAD_DIR}/{file_id}.*"):
             os.remove(f)
             print(f"[CLEANUP] Deleted: {f}")
     except Exception as e:
@@ -188,8 +188,8 @@ def download():
         print(f"Exception during proof verification: {e}")
         return "Server error during proof verification", 500
 
-    ezra_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezra")
-    ezrd_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrd")
+    ezra_path = os.path.join(UPLOAD_DIR, f"{file_id}.ezra")
+    ezrd_path = os.path.join(UPLOAD_DIR, f"{file_id}.ezrd")
 
     if not os.path.exists(ezra_path):
         return "File not found", 404
@@ -223,4 +223,17 @@ def download():
 
 
 if __name__ == "__main__":
+    # Initialize SQLite database
+    # SQLite database setup
+    schema = """
+    CREATE TABLE IF NOT EXISTS expirations (
+        file_id TEXT PRIMARY KEY,
+        expires_at INTEGER NOT NULL,
+        delete_on_download INTEGER DEFAULT 0,
+    );
+    """
+    with sqlite3.connect(DB_DIR / "expirations.db") as db:
+        db.execute(schema)
+        db.commit()
+    print(f"[INIT] Initialized {DB_DIR / 'expirations.db'}")
     app.run(ssl_context="adhoc", host="0.0.0.0", debug=True, port=5000)

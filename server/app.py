@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, after_this_request
 from storage import encrypt_files_to_ezra, timestomp, pad_file_reasonably, pad_file_to_exact_size
 from encryption import encrypt_ezrm, decrypt_ezrm
-from zk_utils import generate_secret, get_commitment
+from zk_utils import poseidon_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from pathlib import Path
@@ -62,32 +62,45 @@ def upload():
     if len(files) > MAX_FILE_COUNT:
         return f"Too many files. Maximum allowed is {MAX_FILE_COUNT}.", 400
 
-    # Accept client-generated base64 secret
+    # Accept secret for hashing reference only (optional since proof is client-side)
     secret_b64 = request.form.get("secret")
     if not secret_b64:
         return "Missing secret", 400
 
     try:
-        secret = int.from_bytes(base64.b64decode(secret_b64), "big")
+        base64.b64decode(secret_b64)
     except Exception:
         return "Invalid base64 secret", 400
 
-    # Compute ZK commitment and file ID
-    commitment = get_commitment(secret)  # runs snarkjs
-    file_id = commitment
+    # Get proof and public input from client
+    proof_json = request.form.get("zk_proof")
+    public_json = request.form.get("zk_public")
+    if not proof_json or not public_json:
+        return "Missing ZK proof or public input", 400
 
-    # Accept encrypted file and store as .ezra
-    f = files[0]  # Only 1 file expected after client encryption
+    try:
+        proof = json.loads(proof_json)
+        public = json.loads(public_json)
+    except Exception:
+        return "Invalid proof or public format", 400
+
+    # Use first public input (Poseidon(secret)) as the file_id
+    file_id = public[0]
+
+    # Save encrypted file
+    f = files[0]
     ezra_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezra")
     f.save(ezra_path)
 
-    # Copy proof and public files to upload dir
+    # Save ZK proof and public signals
     ezrp_proof_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.proof.json")
     ezrp_public_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.public.json")
-    shutil.copy("working_dir/proof.json", ezrp_proof_path)
-    shutil.copy("working_dir/public.json", ezrp_public_path)
+    with open(ezrp_proof_path, "w") as pf:
+        json.dump(proof, pf)
+    with open(ezrp_public_path, "w") as pubf:
+        json.dump(public, pubf)
 
-    # Handle expiration settings
+    # Handle expiration policy
     expire_days = int(request.form.get("expire_days", 7))
     delete_after_download = request.form.get("delete_after_download") == "true"
     actual_expire_days = expire_days if expire_days > 0 else 7
@@ -98,10 +111,10 @@ def upload():
     }
 
     ezrd_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{file_id}.ezrd")
-    with open(ezrd_path, "w") as f:
-        json.dump(ezrd, f)
+    with open(ezrd_path, "w") as meta_file:
+        json.dump(ezrd, meta_file)
 
-    # Timestomp and pad relevant files
+    # Timestomp and pad all relevant files
     pad_file_reasonably(Path(ezra_path))
     pad_file_to_exact_size(Path(ezrd_path), 4000)
     timestomp([Path(ezra_path), Path(ezrd_path), Path(ezrp_proof_path), Path(ezrp_public_path)])
@@ -109,6 +122,21 @@ def upload():
     print(f"[UPLOAD] Stored file with ID: {file_id}")
 
     return jsonify({ "file_id": file_id })
+
+@app.route("/poseidon", methods=["POST"])
+def poseidon_endpoint():
+    data = request.get_json()
+    try:
+        b64 = data.get("secret_b64")
+        if not b64:
+            return "Missing input", 400
+
+        binary = base64.b64decode(b64)
+        secret = int.from_bytes(binary, byteorder="big")
+        hashed = poseidon_hash(secret)
+        return jsonify({ "hash": hashed })  # already decimal string
+    except Exception as e:
+        return f"Error: {str(e)}", 500
 
 
 

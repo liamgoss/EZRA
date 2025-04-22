@@ -7,7 +7,15 @@
 </head>
 <body>
   <header>
+    <!-- Load snarkjs from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/snarkjs@0.7.1/build/snarkjs.min.js"></script>
+    <!-- Load jszip from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+    <!-- Load actual JS logic -->
+    <script src="{{ url_for('static', filename='modal_logic.js') }}"></script>
+    <script src="{{ url_for('static', filename='file_logic.js') }}"></script>
+    <script src="{{ url_for('static', filename='zkp_logic.js') }}"></script>
     <h1>EZRA</h1>
     <nav>
       <a href="/about">About</a>
@@ -55,6 +63,16 @@
         </div>
       </div>
     </div>
+
+    <section id="downloadSection" class="info-card">
+      <h3>Retrieve a File</h3>
+      <form id="downloadForm">
+        <label for="downloadSecret">Enter your secret:</label>
+        <input type="text" id="downloadSecret" name="secret" required placeholder="Paste your secret..." />
+        <button type="submit" style="margin-top: 1rem;">Download</button>
+      </form>
+      <p id="downloadStatus" class="text-sm text-red-600 mt-2 hidden"></p>
+    </section>
 
 
     <div id="secretModal" class="modal hidden">
@@ -105,237 +123,7 @@
     
 
   </main>
-  <script>
-    const uploadForm = document.getElementById("uploadForm");
-    const fileInput = document.getElementById("fileUpload");
-    const dropZone = document.getElementById("dropZone");
-    const responseMsg = document.getElementById("responseMsg");
   
-    const modal = document.getElementById("uploadOptionsModal");
-    const cancelUpload = document.getElementById("cancelUpload");
-    const confirmUpload = document.getElementById("confirmUpload");
-    const deleteAfterDownload = document.getElementById("deleteAfterDownload");
-    let currentSecret = "";
-  
-    const expirySelect = document.getElementById("expiryDays");
-    const customExpiryInput = document.getElementById("customExpiry");
-
-    expirySelect.addEventListener("change", () => {
-      if (expirySelect.value === "custom") {
-        customExpiryInput.classList.remove("hidden");
-        customExpiryInput.required = true;
-      } else {
-        customExpiryInput.classList.add("hidden");
-        customExpiryInput.required = false;
-      }
-    });
-  
-    let pendingFiles = [];
-  
-    // Secret Modal Elements
-    const secretModal = document.getElementById("secretModal");
-    const secretMessage = document.getElementById("secretMessage");
-    const copySecretBtn = document.getElementById("copySecret");
-    const closeSecretModalBtn = document.getElementById("closeSecretModal");
-  
-    // File dialog
-    dropZone.addEventListener('click', () => fileInput.click());
-  
-    // Show selected files
-    fileInput.addEventListener('change', function () {
-      const files = Array.from(fileInput.files);
-      if (files.length > 0) {
-        const names = files.map(f => f.name).join(', ');
-        dropZone.textContent = `Selected: ${names}`;
-      } else {
-        dropZone.textContent = 'Drag and drop a file here or click to upload';
-      }
-    });
-  
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
-    });
-  
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('dragover');
-    });
-  
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-      fileInput.files = e.dataTransfer.files;
-  
-      const files = Array.from(fileInput.files);
-      const names = files.map(f => f.name).join(', ');
-      dropZone.textContent = `Selected: ${names}`;
-    });
-  
-    // Submit shows modal
-    uploadForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const files = Array.from(fileInput.files);
-      const maxFiles = 5;
-  
-      if (files.length > maxFiles) {
-        alert(`You can only upload up to ${maxFiles} files.`);
-        return;
-      }
-      if (files.length === 0) {
-        alert("No files selected.");
-        return;
-      }
-  
-      pendingFiles = files;
-      modal.classList.remove("hidden");
-    });
-  
-    cancelUpload.addEventListener("click", () => {
-      modal.classList.add("hidden");
-      pendingFiles = [];
-    });
-
-    async function createZipArchive(files) {
-      const zip = new JSZip();
-      for (const file of files) {
-        const content = await file.arrayBuffer();
-        zip.file(file.name, content);
-      }
-      const blob = await zip.generateAsync({ type: "uint8array" });
-      return blob;
-    }
-  
-
-    
-    confirmUpload.addEventListener("click", async () => {
-      if (pendingFiles.length === 0) return alert("No file selected");
-
-      confirmUpload.disabled = true;
-      confirmUpload.textContent = "Encrypting & Uploading...";
-
-      // Create ZIP archive in browser
-      const zipData = await createZipArchive(pendingFiles);
-
-      // Generate AES key and secret
-      const aesKey = new Uint8Array(32);
-      const secret = new Uint8Array(32);
-      window.crypto.getRandomValues(aesKey);
-      window.crypto.getRandomValues(secret);
-
-      // Encrypt ZIP using AES-GCM
-      const iv = window.crypto.getRandomValues(new Uint8Array(12));
-      const keyObj = await crypto.subtle.importKey('raw', aesKey, { name: 'AES-GCM' }, false, ['encrypt']);
-      const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, keyObj, zipData);
-
-      // Encrypted file = nonce + ciphertext
-      const encryptedBlob = new Blob([iv, new Uint8Array(ciphertext)], { type: 'application/octet-stream' });
-
-      // FormData
-      const formData = new FormData();
-      formData.append("file", encryptedBlob, "encrypted.ezra");
-      formData.append("secret", btoa(String.fromCharCode(...secret)));
-
-      const selectedValue = expirySelect.value;
-      const expireDays = selectedValue === "custom"
-        ? parseInt(customExpiryInput.value)
-        : parseInt(selectedValue);
-      if (isNaN(expireDays) || expireDays < 1 || expireDays > 31) {
-        alert("Please enter a valid expiration between 1 and 31 days.");
-        return;
-      }
-
-      formData.append("expire_days", expireDays);
-      formData.append("delete_after_download", deleteAfterDownload.checked);
-
-      try {
-        const res = await fetch("/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (res.status === 413) {
-          responseMsg.textContent = "File too large. Max size is 50MB.";
-          return;
-        }
-
-        const json = await res.json();
-
-        // Combine secret + aesKey
-        const composite = new Uint8Array(secret.length + aesKey.length);
-        composite.set(secret, 0);
-        composite.set(aesKey, secret.length);
-        const compositeB64 = btoa(String.fromCharCode(...composite));
-
-        showSecretModal(compositeB64);
-
-      } catch (err) {
-        console.error(err);
-        responseMsg.textContent = "Upload failed. Check the console for more info.";
-      } finally {
-        modal.classList.add("hidden");
-        pendingFiles = [];
-        confirmUpload.disabled = false;
-        confirmUpload.textContent = "Submit";
-      }
-    });
-  
-    // Secret Modal Logic
-    function showSecretModal(secret) {
-      currentSecret = secret;
-      secretMessage.innerHTML = `This is your secret:<br><br><strong>${secret}</strong><br><br>Copy and share it securely. You won't be able to retrieve it again.`;
-  
-      let countdown = 5;
-      closeSecretModalBtn.disabled = true;
-      closeSecretModalBtn.textContent = `Close (${countdown})`;
-      secretModal.classList.remove("hidden");
-  
-      const timer = setInterval(() => {
-        countdown--;
-        if (countdown > 0) {
-          closeSecretModalBtn.textContent = `Close (${countdown})`;
-        } else {
-          clearInterval(timer);
-          closeSecretModalBtn.disabled = false;
-          closeSecretModalBtn.textContent = "Close";
-        }
-      }, 1000);
-  
-      copySecretBtn.onclick = () => {
-        const tempInput = document.createElement("textarea");
-        tempInput.value = currentSecret; // Clipboard fallback
-        document.body.appendChild(tempInput); // Create a temporary input element
-        tempInput.select();
-        document.execCommand("copy");
-        document.body.removeChild(tempInput);
-
-        copySecretBtn.textContent = "Copied!";
-        setTimeout(() => {
-          copySecretBtn.textContent = "Copy to Clipboard";
-        }, 2000);
-      };
-  
-      closeSecretModalBtn.onclick = () => {
-        secretModal.classList.add("hidden");
-        secretMessage.textContent = "";
-        currentSecret = "";
-        resetUploadUI();
-
-      };
-    }
-
-    function resetUploadUI() {
-      // Reset file input
-      fileInput.value = "";
-      dropZone.textContent = "Drag and drop a file here or click to upload";
-
-      // Reset form data
-      pendingFiles = [];
-
-      // Also reset form fields just in case
-      uploadForm.reset();
-    }
-
-  </script>
   
   
 </body>

@@ -1,2 +1,0 @@
-SERVER_URL = "https://10.0.0.238:5000"
-#SERVER_URL = "http://127.0.0.1:5001"

@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
 from pathlib import Path
 import time, sqlite3
 
-from paths import UPLOAD_DIR, DB_DIR, TMP_PROOF_PATH, VERIFICATION_KEY_PATH
+from paths import UPLOAD_DIR, DB_DIR
 
 DB_PATH = DB_DIR / "expirations.db"
 

@@ -1,17 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, after_this_request
+from flask import Flask, render_template, request, jsonify, after_this_request
 from storage import timestomp, pad_file_reasonably
 from zk_utils import poseidon_hash
-from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from pathlib import Path
-import os, uuid, subprocess, base64, json, time, threading, shutil, glob, sqlite3
+import os, subprocess, base64, json, time, threading, glob, sqlite3
 from paths import UPLOAD_DIR, DB_DIR, ensure_directories
 
 
 load_dotenv()
 ensure_directories()
 
-MAX_CONTENT_LENGTH_MB = int(os.getenv("MAX_CONTENT_LENGTH_MB", 50))
+MAX_CONTENT_LENGTH_MB = int(os.getenv("MAX_CONTENT_LENGTH_MB", 275))
 MAX_FILE_COUNT = int(os.getenv("MAX_FILE_COUNT", 5))
 
 # Ensure the uploads directory exists
@@ -22,8 +21,27 @@ os.makedirs(DB_DIR, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_DIR'] = UPLOAD_DIR
 app.config['DB_DIR'] = DB_DIR
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH_MB * 1000 * 1000 # e.g. 50MB file size limit
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH_MB * 1000 * 1000 # e.g. 275MB .ezra container size limit
 app.config['MAX_FILE_COUNT'] = MAX_FILE_COUNT
+
+
+@app.errorhandler(413)
+def handle_413(e):
+    print(f"[!] Payload too large: {e}")
+
+    return "Payload too large. Please ensure your encrypted upload is under {} MB.".format(
+        app.config['MAX_CONTENT_LENGTH'] // 1000000
+    ), 413
+
+
+def get_expiration(file_id: str):
+    db_path = app.config['DB_DIR'] / "expirations.db"
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT delete_on_download FROM expirations WHERE file_id = ?", (file_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return bool(row[0]) if row else False
 
 # HTML pages to be served
 
@@ -38,10 +56,6 @@ def about():
 @app.route("/terms")
 def terms():
     return render_template("terms.html")
-
-@app.route("/tmp")
-def tmp():
-    return render_template("tmp.html")
 
 @app.route("/privacy")
 def privacy():
@@ -105,7 +119,6 @@ def upload():
     actual_expire = expire_hours if expire_hours > 0 else 24
     delete_after_download = request.form.get("delete_after_download") == "true"
     
-    
 
     with sqlite3.connect(DB_DIR / "expirations.db") as db:
         db.execute(
@@ -113,7 +126,6 @@ def upload():
             (file_id, int(time.time()) + actual_expire * 3600, int(delete_after_download))
         )
 
-    
 
     # Timestomp and pad all relevant files
     pad_file_reasonably(Path(ezra_path))
@@ -140,7 +152,7 @@ def poseidon_endpoint():
 
 
 
-def delayed_delete(file_id, delay=5):
+def delayed_delete(file_id, delay=120):
     time.sleep(delay)
     try:
         for f in glob.glob(f"{UPLOAD_DIR}/{file_id}.*"):
@@ -189,21 +201,13 @@ def download():
         return "Server error during proof verification", 500
 
     ezra_path = os.path.join(UPLOAD_DIR, f"{file_id}.ezra")
-    ezrd_path = os.path.join(UPLOAD_DIR, f"{file_id}.ezrd")
+    
 
     if not os.path.exists(ezra_path):
         return "File not found", 404
 
-    should_delete = False
-    if os.path.exists(ezrd_path):
-        try:
-            with open(ezrd_path, "rb") as f:
-                raw = f.read().rstrip(b'\x00')
-                ezrd = json.loads(raw.decode("utf-8"))
-                should_delete = ezrd.get("delete_on_download", False)
-        except Exception as e:
-            print(f"[!] Failed to parse .ezrd for {file_id}: {e}")
-
+    should_delete = get_expiration(file_id)
+    
     # Load ciphertext before scheduling deletion
     with open(ezra_path, "rb") as f:
         ciphertext = f.read().rstrip(b'\x00')
@@ -229,7 +233,7 @@ if __name__ == "__main__":
     CREATE TABLE IF NOT EXISTS expirations (
         file_id TEXT PRIMARY KEY,
         expires_at INTEGER NOT NULL,
-        delete_on_download INTEGER DEFAULT 0,
+        delete_on_download INTEGER DEFAULT 0
     );
     """
     with sqlite3.connect(DB_DIR / "expirations.db") as db:

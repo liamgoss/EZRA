@@ -33,6 +33,7 @@
         Drag and drop a file here or click to upload
       </label>
       <button type="submit">Confirm</button>
+      <p id="uploadError" class="text-sm text-red-600 hidden" style="margin-top: 0.5rem;"></p>
     </form>
 
     <div id="uploadOptionsModal" class="modal hidden">
@@ -43,8 +44,8 @@
           Erase after first download:
           <input type="checkbox" id="deleteAfterDownload" checked>
         </label>
-        <br>
-        <br>
+        <br><br>
+    
         <label for="expiryHours">Expire after:</label>
         <select id="expiryHours">
           <option value="1">1 hour</option>
@@ -53,15 +54,23 @@
           <option value="24" selected>24 hours</option>
           <option value="48">48 hours</option>
           <option value="72">72 hours</option>
-          
         </select>
-         
+    
         <div style="margin-top: 1rem;">
           <button id="confirmUpload">Submit</button>
           <button id="cancelUpload" class="secondary">Cancel</button>
         </div>
+    
+        <!-- Stage message -->
+        <p id="uploadStage" style="margin-top: 1rem; font-weight: bold; color: #444;">
+          <!-- dynamically set from JS -->
+        </p>
+    
+        <!-- Progress bar -->
+        <progress id="uploadProgress" value="0" max="100" style="width: 100%; margin-top: 0.5rem;"></progress>
       </div>
     </div>
+    
 
     <section id="downloadSection" class="info-card">
       <h3>Retrieve a File</h3>
@@ -70,6 +79,7 @@
         <input type="text" id="downloadSecret" name="secret" required placeholder="Paste your secret..." />
         <button type="submit" style="margin-top: 1rem;">Download</button>
       </form>
+      <progress id="downloadProgress" value="0" max="100" style="width: 100%; margin-top: 1rem;" class="hidden"></progress>
       <p id="downloadStatus" class="text-sm text-red-600 mt-2 hidden"></p>
     </section>
 
@@ -122,8 +132,8 @@
     
 
   </main>
-  
-  
+
+
   
 </body>
 </html>

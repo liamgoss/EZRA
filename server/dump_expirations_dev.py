@@ -10,7 +10,7 @@ def humanize(ts):
     except:
         return "Invalid timestamp"
 
-with sqlite3.connect(DB_DIR) as conn:
+with sqlite3.connect(DB_DIR / "expirations.db") as conn:
     cursor = conn.execute("SELECT file_id, expires_at, delete_on_download FROM expirations ORDER BY expires_at ASC")
     rows = cursor.fetchall()
 

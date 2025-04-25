@@ -41,101 +41,140 @@ document.addEventListener("DOMContentLoaded", () => {
     uploadForm.addEventListener("submit", (e) => {
       e.preventDefault();
       const files = Array.from(fileInput.files);
+      const errorEl = document.getElementById("uploadError");
       const maxFiles = 5;
-  
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
+      const maxTotalSize = 250 * 1024 * 1024; // 250MB
+    
+      errorEl.classList.add("hidden");
+    
       if (files.length > maxFiles) {
-        alert(`You can only upload up to ${maxFiles} files.`);
+        errorEl.textContent = `You can only upload up to ${maxFiles} files.`;
+        errorEl.classList.remove("hidden");
         return;
       }
-      if (files.length === 0) {
-        alert("No files selected.");
+      
+      if (!files || files.length === 0) {
+        errorEl.textContent = "Please select at least one file to upload.";
+        errorEl.classList.remove("hidden");
         return;
       }
-  
+      
+      // Check each file size
+      for (const file of files) {
+        if (file.size > maxFileSize) {
+          errorEl.textContent = `${file.name} exceeds the 50MB file size limit.`;
+          errorEl.classList.remove("hidden");
+          return;
+        }
+      }
+
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      if (totalSize > maxTotalSize) {
+        errorEl.textContent = `Total upload size exceeds 250MB.`;
+        errorEl.classList.remove("hidden");
+        return;
+      }
+    
       window.pendingFiles = files;
       modal.classList.remove("hidden");
     });
+    
   
     // ******************* //
     // Core upload handler //
     // ******************* //
     confirmUpload.addEventListener("click", async () => {
       if (pendingFiles.length === 0) return alert("No file selected");
-  
+      const stageText = document.getElementById("uploadStage");
+      const progressBar = document.getElementById("uploadProgress");
       confirmUpload.disabled = true;
       confirmUpload.textContent = "Encrypting & Uploading...";
-  
+    
       try {
+        stageText.textContent = "Encrypting your files…";
         const zipData = await createZipArchive(pendingFiles);
-  
+    
         // Generate AES key and secret
         const aesKey = new Uint8Array(32);
         const secret = new Uint8Array(32);
         crypto.getRandomValues(aesKey);
         crypto.getRandomValues(secret);
-  
+        
+    
         // Encrypt with AES-GCM
         const iv = crypto.getRandomValues(new Uint8Array(12));
         const keyObj = await crypto.subtle.importKey('raw', aesKey, { name: 'AES-GCM' }, false, ['encrypt']);
         const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, keyObj, zipData);
-  
-        // Combine IV + ciphertext
+
+        stageText.textContent = "Uploading to EZRA…";
+    
         const encryptedBlob = new Blob([iv, new Uint8Array(ciphertext)], { type: 'application/octet-stream' });
-  
-        // FormData
+    
         const formData = new FormData();
-        
         formData.append("file", encryptedBlob, "encrypted.ezra");
         formData.append("secret", btoa(String.fromCharCode(...secret)));
-  
-        // Expiration
+    
         const expireHours = parseInt(expirySelect.value);
-
         if (isNaN(expireHours) || expireHours < 1 || expireHours > 72) {
-        alert("Please enter a valid expiration between 1 and 168 hours.");
-        return;
+          alert("Please enter a valid expiration between 1 and 72 hours.");
+          return;
         }
-
+    
         formData.append("expire_hours", expireHours);
         formData.append("delete_after_download", deleteAfterDownload.checked);
-
+    
         const { proof, public: publicSignals } = await generateProof(btoa(String.fromCharCode(...secret)));
         formData.append("zk_proof", JSON.stringify(proof));
         formData.append("zk_public", JSON.stringify(publicSignals));
-
-  
-        // Upload
-        const res = await fetch("/upload", {
-          method: "POST",
-          body: formData,
-        });
-  
-        if (!res.ok) {
-          const error = await res.text();
-          alert(`Upload failed: ${error}`);
-          return;
-        }
-  
-        const json = await res.json();
-  
-        // Return composite key
+    
+        // Return composite key *now*, but defer showing it
         const composite = new Uint8Array(secret.length + aesKey.length);
         composite.set(secret, 0);
         composite.set(aesKey, secret.length);
         const compositeB64 = btoa(String.fromCharCode(...composite));
-  
-        window.showSecretModal(compositeB64);
-  
+    
+        // Setup upload progress
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/upload", true);
+    
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            progressBar.value = percent;
+            if (percent === 100) {
+              stageText.textContent = "Finalizing…";
+            }
+          }
+        };
+    
+        xhr.onload = async function () {
+          if (xhr.status !== 200) {
+            alert(`Upload failed: ${xhr.responseText}`);
+            return;
+          }
+          modal.classList.add("hidden");
+          // Upload succeeded — now show the secret
+          window.showSecretModal(compositeB64);
+        };
+    
+        xhr.onerror = function () {
+          alert("Upload failed due to network error.");
+        };
+    
+        xhr.send(formData);
+    
       } catch (err) {
         console.error("[Upload Error]", err);
         alert("Upload failed. Check console for more info.");
       } finally {
-        modal.classList.add("hidden");
+        
         window.pendingFiles = [];
         confirmUpload.disabled = false;
         confirmUpload.textContent = "Submit";
       }
     });
+    
   
     // Zip helper
     async function createZipArchive(files) {
@@ -152,30 +191,30 @@ document.addEventListener("DOMContentLoaded", () => {
     // ********************* //
     // Core download handler //
     // ********************* //
-    // Download logic
     const downloadBtn = document.querySelector("#downloadForm button");
 
     document.getElementById("downloadForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
+      e.preventDefault();
 
-    downloadBtn.disabled = true;
-    downloadBtn.textContent = "Proving & Decrypting…";
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = "Proving & Decrypting…";
 
-    const secretInput = document.getElementById("downloadSecret");
-    const downloadStatus = document.getElementById("downloadStatus");
-    const secret = secretInput.value.trim();
+      const secretInput = document.getElementById("downloadSecret");
+      const downloadStatus = document.getElementById("downloadStatus");
+      const downloadProgress = document.getElementById("downloadProgress");
+      const secret = secretInput.value.trim();
 
-    resetDownloadStatus();
+      resetDownloadStatus();
 
-    if (!secret) {
+      if (!secret) {
         downloadStatus.textContent = "You must enter a secret.";
         downloadStatus.classList.remove("hidden");
         downloadBtn.disabled = false;
         downloadBtn.textContent = "Download";
         return;
-    }
+      }
 
-    try {
+      try {
         const secretBytes = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
         const key = secretBytes.slice(32);
         const seed = secretBytes.slice(0, 32);
@@ -184,19 +223,38 @@ document.addEventListener("DOMContentLoaded", () => {
         const { proof, public: publicSignals } = await generateProof(secretB64);
 
         const res = await fetch("/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proof, public: publicSignals })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ proof, public: publicSignals })
         });
 
         if (!res.ok) {
-        const error = await res.text();
-        downloadStatus.textContent = `Download failed: ${error}`;
-        downloadStatus.classList.remove("hidden");
-        return;
+          const error = await res.text();
+          downloadStatus.textContent = `Download failed: ${error}`;
+          downloadStatus.classList.remove("hidden");
+          return;
         }
 
-        const { ciphertext } = await res.json();
+        // --- Stream and decode the response ---
+        downloadProgress.classList.remove("hidden");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        const contentLength = +res.headers.get("Content-Length") || 1;
+        let received = 0;
+        let text = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          text += decoder.decode(value, { stream: true });
+          received += value.length;
+          downloadProgress.value = Math.round((received / contentLength) * 100);
+        }
+
+        const parsed = JSON.parse(text);
+        const ciphertext = parsed.ciphertext;
         const raw = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
 
         const iv = raw.slice(0, 12);
@@ -212,14 +270,17 @@ document.addEventListener("DOMContentLoaded", () => {
         a.click();
 
         resetDownloadStatus();
-    } catch (err) {
+      } catch (err) {
         console.error("[Download Error]", err);
         downloadStatus.textContent = "Download or decryption failed.";
         downloadStatus.classList.remove("hidden");
-    } finally {
+      } finally {
+        downloadProgress.classList.add("hidden");
+        downloadProgress.value = 0;
         downloadBtn.disabled = false;
         downloadBtn.textContent = "Download";
-    }
+      }
     });
+
 
 });

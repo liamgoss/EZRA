@@ -6,6 +6,14 @@ wslvenv/
 __pycache__/
 *.pyc
 
+# Scripts
+scripts/*
+!scripts/cleanup_expired.py
+
+# Canary Data - To be generated after deployment
+server/static/canary/*.asc
+
+
 # IDE and tools
 .vscode/
 
@@ -67,7 +75,6 @@ server/tests/*
 # File containers
 *.ezra
 *.ezrm
-
 
 # Working dir
 server/working_dir/

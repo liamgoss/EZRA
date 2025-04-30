@@ -3,7 +3,7 @@ from storage import timestomp, pad_file_reasonably
 from zk_utils import poseidon_hash
 from dotenv import load_dotenv
 from pathlib import Path
-import os, subprocess, base64, json, time, threading, glob, sqlite3
+import os, subprocess, base64, json, time, threading, glob, sqlite3, re, datetime
 from paths import UPLOAD_DIR, DB_DIR, ensure_directories
 
 
@@ -34,6 +34,8 @@ def handle_413(e):
     ), 413
 
 
+
+
 def get_expiration(file_id: str):
     db_path = app.config['DB_DIR'] / "expirations.db"
     conn = sqlite3.connect(db_path)
@@ -60,6 +62,33 @@ def terms():
 @app.route("/privacy")
 def privacy():
     return render_template("privacy.html")
+
+@app.route("/dmca")
+def dmca():
+    return render_template("dmca.html")
+
+@app.route("/canary")
+def canary():
+    with open("static/canary/canary.txt.asc", "r") as f:
+        canary_content = f.read()
+    
+    # Extract the "Last updated" date using regex
+    match = re.search(r"Last Updated:\s*([A-Za-z]+\s+\d{1,2},\s+\d{4})", canary_content)
+    if match:
+        last_updated = match.group(1).strip()
+    else:
+        last_updated = "Unknown"  # Fallback if parsing fails
+    
+    return render_template(
+        "canary.html",
+        date=last_updated,
+        fingerprint="BB9A 9EEA 1443 59DE BB57  9867 8A32 EDA8 0D50 2239",
+        public_key_url="/static/canary/ezra_public_key.asc",
+        signed_canary_url="/static/canary/canary.txt.asc",
+        signature_block=canary_content,
+        year=str(datetime.datetime.now(datetime.timezone.utc).year)
+    )
+
 
 # Core EZRA logic
 

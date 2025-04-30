@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EZRA Warrant Canary</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 2rem; background-color: #f9f9f9; color: #333;">
+
+    <h1>EZRA Warrant Canary</h1>
+
+    <p><strong>Last Updated:</strong> {{ date }}</p>
+
+    <hr>
+
+    <h2>PGP Signature</h2>
+
+    <p><strong>PGP Fingerprint:</strong> <code>{{ fingerprint }}</code></p>
+    <p><a href="{{ public_key_url }}" download>Download our EZRA Canary Bot public key</a></p>
+    <p><a href="{{ signed_canary_url }}" download>Download signed warrant canary</a></p>
+
+    <hr>
+
+    <pre style="background-color: #eee; padding: 1rem; overflow-x: auto;">
+{{ signature_block }}
+    </pre>
+
+    <footer style="margin-top: 3rem; font-size: 0.9rem; color: gray;">
+        &copy; {{ year }} EZRA Project. All rights reserved.
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+EZRA Warrant Canary
+Last Updated: April 29, 2025
+
+As of the date above, EZRA affirms the following statements:
+
+We have not received any National Security Letters (NSLs).
+We have not received any subpoenas, court orders, or warrants accompanied by gag orders.
+We have not been compelled to compromise or weaken the security of our systems in any way.
+
+Due to the design of EZRA — including zero-knowledge access verification, ephemeral storage, and metadata minimization — we retain no meaningful user information or file activity logs.  
+Should legal demands be made that would compromise the privacy, integrity, or security of the EZRA service, the project would be shut down rather than comply.
+
+This statement will be updated at least once every 30 days. 
+Failure to update within 45 days may indicate that EZRA has been compelled to act under legal orders.
+
+Signed by: EZRA Canary Bot

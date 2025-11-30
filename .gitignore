@@ -14,10 +14,6 @@ DOCS/
 scripts/*
 !scripts/cleanup_expired.py
 
-# Canary Data - To be generated after deployment
-server/static/canary/*.asc
-
-
 # IDE and tools
 .vscode/
 
@@ -40,6 +36,14 @@ dist/
 *.wtns
 *.r1cs
 *.sym
+
+# Runtime
+uploads/
+logs/
+db/
+artifacts/tmp_*
+tests/tmp
+
 
 # Node dependencies
 node_modules/

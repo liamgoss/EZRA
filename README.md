@@ -292,7 +292,9 @@ Set up a cron job to run this periodically:
 
 ## License
 
-MIT License (or specify your license here)
+AGPL v3 - see LICENSE file for details
+
+For commercial licensing options (private deployment without AGPL obligations), contact Liam Goss
 
 ---
 

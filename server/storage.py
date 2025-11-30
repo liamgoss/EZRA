@@ -1,12 +1,11 @@
 # Ephemeral File Handling
 
-import io, os, time
+import io, os
 from zipfile import ZipFile
 # Although it ruins the consistency of using os.path.* everywhere,
 # pathlib seems best for the following file manipulations compared to os.path
 from pathlib import Path 
 from typing import List
-from encryption import encrypt_file, decrypt_file
 
 
 def timestomp(files: List[Path]):

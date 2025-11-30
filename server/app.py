@@ -70,7 +70,9 @@ def dmca():
 
 @app.route("/canary")
 def canary():
-    with open("static/canary/canary.txt.asc", "r") as f:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    canary_path = os.path.join(base_dir, "static/canary/canary.txt.asc")
+    with open(canary_path, "r") as f:
         canary_content = f.read()
     
     # Extract the "Last updated" date using regex

@@ -38,7 +38,9 @@ dist/
 *.sym
 
 # Runtime
-uploads/
+uploads/*.ezra
+uploads/*.json
+
 logs/
 db/
 artifacts/tmp_*

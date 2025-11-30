@@ -1,82 +1,86 @@
 # EZRA: Ephemeral Zero-Knowledge Relay Archive
 
-A secure, ephemeral file-sharing prototype using **Zero-Knowledge Proofs** and **AES-256-GCM encryption**. Files are uploaded anonymously, stored encrypted, and can only be retrieved by proving knowledge of a secret (preimage) without revealing it.
+A secure, ephemeral file-sharing system using client-side Zero-Knowledge Proofs and browser-based AES-256-GCM encryption. Files are uploaded anonymously, stored encrypted, and can only be retrieved by proving knowledge of a secret (preimage) without revealing it.
 
-This project uses **Circom 2.1.6** and **snarkjs** (Groth16) to implement a Poseidon preimage proof, and avoids blockchain dependencies entirely.
+This project uses Circom 2.1.6 and snarkjs (Groth16) for client-side Poseidon preimage proofs, with all encryption and proof generation happening in the browser.
+
+---
+
+## Key Features
+
+- End-to-End Encryption: Files encrypted in browser with AES-256-GCM
+- Zero-Knowledge Proofs: Prove you know the secret without revealing it
+- Fully Browser-Based: No client installation required
+- Ephemeral Storage: Configurable expiration (1-72 hours)
+- One-Time Downloads: Optional delete-after-download
+- Privacy-First: Timestomping and file padding for metadata protection
 
 ---
 
 ## Prerequisites
 
-Install the following:
-- [Rust](https://rustup.rs) (for building Circom)
+Install the following on your server:
+
+- Python 3.8+
 - Node.js + npm
-- `snarkjs`: `npm install snarkjs`
-- `circomlibjs`: `npm install circomlibjs`
-- Circom 2.1.6 (build from source): https://github.com/iden3/circom
+- Rust (for building Circom from source)
+- Circom 2.1.6: https://github.com/iden3/circom
+- snarkjs CLI: `npm install -g snarkjs`
 
 Inside your project root:
+
 ```bash
 npm init -y
 npm install circomlibjs
 npm install snarkjs
 ```
 
-> NOTE: All JavaScript dependencies for ZK circuit building and proof generation (e.g. snarkjs, circomlibjs) are managed via the root-level package.json.
+> NOTE: JavaScript dependencies (snarkjs, circomlibjs) are used server-side only for the Poseidon hash helper endpoint. All ZK proof generation happens client-side in the browser.
 
-## Project Structure (Simplified)
+---
+
+## Project Structure
+
 ```
 EZRA/
 ├── circuits/                     # Circom circuit files
 │   ├── poseidon.circom
 │   ├── poseidon_constants.circom
 │   └── poseidon_preimage.circom
-├── client/                       # GUI + CLI client tool
-│   ├── ezra.py
-│   ├── gui.py
-│   ├── download.py
-│   ├── utils.py
-│   ├── config.py
-│   ├── tmp/                      # Temporary input/proof files
-│   └── working_dir/             # ZK artifacts copied here during build
 ├── server/                       # Flask web server
-│   ├── app.py
-│   ├── encryption.py
-│   ├── storage.py
-│   ├── zk_utils.py
-│   ├── templates/
-│   ├── static/
-│   ├── uploads/                 # Encrypted file storage
-│   ├── working_dir/            # ZK artifacts used at runtime
-│   ├── scripts/
-│   │   ├── cleanup_expired.py  # Deletes expired uploads
+│   ├── app.py                    # Main Flask application
+│   ├── storage.py                # File padding and timestomping
+│   ├── zk_utils.py               # Poseidon hash helper
+│   ├── paths.py                  # Directory configuration
+│   ├── templates/                # HTML templates
+│   ├── static/                   # Frontend assets
+│   │   ├── file_logic.js         # Upload/download handlers
+│   │   ├── zkp_logic.js          # Client-side ZK proof generation
+│   │   ├── modal_logic.js        # UI modals
+│   │   ├── style.css
+│   │   ├── poseidon_preimage.wasm  # ZK circuit (client-side)
+│   │   ├── poseidon_preimage.zkey  # Proving key (client-side)
+│   │   └── canary/               # Warrant canary files
+│   ├── uploads/                  # Encrypted file storage
+│   ├── db/                       # SQLite expiration database
 │   └── requirements.txt
+├── artifacts/                    # ZK verification artifacts
+│   └── verification_key.json     # Server-side proof verification
 ├── tests/                        # Test suite
 │   ├── test_routes.py
 │   ├── test_storage.py
-│   ├── test_zk_utils.py
-│   └── test_encryption.py
-├── build_zk.sh                   # Builds ZK artifacts and syncs them to server/ + client/
+│   └── test_zk_utils.py
+├── build_zk.sh                   # Builds ZK artifacts
 ├── README.md
 └── .gitignore
 ```
 
-## .env Configuration
-The Flask server requires a `.env` file located at `server/.env`. A template is provided:
+---
 
-```bash
-cp server/env.example server/.env
-```
+## Setup Instructions
 
-Edit the `.env` file and set your master key:
+### 1. Build the ZK Circuit
 
-```bash
-EZRA_MASTER_KEY=your-256-bit-hex-key
-```
-
-This key is used for AES-GCM file encryption. Make sure it is a valid 32-byte (256-bit) hex string.
-
-## Build the ZK Circuit
 From the project root, run:
 
 ```bash
@@ -84,47 +88,95 @@ chmod +x build_zk.sh && ./build_zk.sh
 ```
 
 This will:
-
-- Compile the Circom circuit
 - Download `pot12_final.ptau` if missing
-- Generate proving and verification keys
-- Copy the resulting artifacts into both:
-  
-  - `server/working_dir/`
-  - `client/working_dir/`
+- Compile the Circom circuit
+- Generate proving key (`.zkey`) and verification key
+- Copy artifacts to:
+  - `server/static/` (for client-side proving)
+  - `artifacts/` (for server-side verification)
 
-These artifacts are required for both uploading and downloading files.
-
-## Manual ZK Proof Test
-To manually test ZK proof generation and verification:
+### 2. Install Python Dependencies
 
 ```bash
-cd server && python3 zk_test.py
+cd server
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
-Expected output (secret and commitment values may differ from the following):
-```yaml
-Secret: 391279... 
-Commitment: 126827...
-Verifier Output: OK!
+
+### 3. Run the Server
+
+```bash
+cd server
+python app.py
 ```
+
+The server will start on `https://localhost:5001` (uses ad-hoc SSL).
+
+---
+
+## How It Works
+
+### Upload Flow
+
+1. **User selects files** in browser
+2. **Client-side processing**:
+   - Files are zipped using JSZip
+   - Random 32-byte `secret` and 32-byte `aesKey` are generated
+   - Files encrypted with AES-GCM using `aesKey`
+   - ZK proof generated: "I know `secret` such that `Poseidon(secret) = hash`"
+   - Proof uses `.wasm` and `.zkey` files downloaded from server
+3. **Upload to server**:
+   - Encrypted file (`.ezra`)
+   - ZK proof and public signals (the hash)
+   - Expiration settings
+4. **Server stores**:
+   - File ID = `Poseidon(secret)`
+   - Saves `.ezra`, `.proof.json`, `.public.json`
+   - Records expiration in SQLite database
+5. **User receives composite key**: `secret + aesKey` (base64-encoded)
+
+### Download Flow
+
+1. **User enters composite key** (received from uploader)
+2. **Client-side processing**:
+   - Split key into `secret` and `aesKey`
+   - Generate ZK proof: "I know `secret` such that `Poseidon(secret) = hash`"
+3. **Send proof to server**
+4. **Server verifies proof**:
+   - Uses snarkjs CLI to verify proof against `verification_key.json`
+   - If valid, returns encrypted `.ezra` file
+   - Optionally deletes file if "delete after download" was set
+5. **Client-side decryption**:
+   - Decrypt with `aesKey` using AES-GCM
+   - Unzip files and trigger download
+
+### Security Properties
+
+- **Anonymous**: No user accounts or authentication
+- **Zero-Knowledge**: Server never sees the secret, only proofs
+- **End-to-End Encrypted**: Server cannot decrypt files
+- **Ephemeral**: Files auto-expire after configured time
+- **Metadata Protection**: Files are timestomped (epoch time) and padded to obfuscate size
+
+---
 
 ## Alice & Bob Example
+
 ### Alice uploads a file:
-- The EZRA server:
-  - Generates a random secret `s`
-  - Compute h = Poseidon(s)
-  - Encrypts Alice's file using AES-256-GCM
-  - Stores the file as `uploads/<h>.ezra`
-  - Returns `s` to Alice
+
+1. Opens EZRA website
+2. Selects file, sets expiration to 24 hours
+3. Browser encrypts file and generates ZK proof
+4. Receives composite key: `dGVzdF9zZWNyZXRfMzJfYnl0ZXNfaGVyZV9f...`
 
 ### Bob downloads the file:
-- Alice gives Bob the secret `s` securely (out-of-band e.g. via Signal)
-- Bob uses the EZRA client tool to:
-  - Generate a ZK proof that he knows `s` such that `Poseidon(s)=h`
-  - Send the proof + public commitment to the server
-  - If valid, the server returns the encrypted file and deletes it from the server
-  - The client tool decrypts the encrypted file, converts to `<UUID>.zip`
 
+1. Alice sends Bob the composite key via Signal (out-of-band)
+2. Bob opens EZRA website, enters the key
+3. Browser generates ZK proof from the key
+4. Server verifies proof and returns encrypted file
+5. Browser decrypts and downloads `ezra_files.zip`
 
 This achieves:
 - Anonymous file delivery
@@ -132,52 +184,118 @@ This achieves:
 - Zero-Knowledge access verification
 - One-time file access (optional)
 
+---
 
 ## Testing
-From the project root, run:
+
+From the project root:
+
 ```bash
-PYTHONPATH=server coverage run -m unittest discover -s tests -p "test_*.py"
+cd server
+source venv/bin/activate
+pytest tests/ -v
+```
+
+For coverage report:
+
+```bash
+coverage run -m pytest tests/
 coverage report
 coverage html
 ```
 
-To test encryption functions, make sure `server/.env` exists and `EZRA_MASTER_KEY` is set
+---
 
-## Scripts
-`build_zk.sh`
+## API Endpoints
 
-Located at the root. Builds the circuit and populates both server and client `working_dir/` directories.
+### `POST /upload`
+Upload encrypted file with ZK proof.
 
-`server/scripts/cleanup_expired.py`
+**Form Data:**
+- `file`: Encrypted file (`.ezra`)
+- `secret`: Base64-encoded secret (32 bytes)
+- `zk_proof`: JSON proof object
+- `zk_public`: JSON public signals array
+- `expire_hours`: Expiration time (1-72)
+- `delete_after_download`: Boolean flag
 
-Deletes expired `.ezra`,`.ezrm`, and `.ezrd` files from `uploads/`. Be sure to update the directory path before using in production:
-```python
-# inside cleanup_expired.py
-from pathlib import Path
+**Returns:** `{ "file_id": "..." }`
 
-PROJECT_ROOT = Path("/home/liam/projects/EZRA")
-UPLOAD_DIR = PROJECT_ROOT / "server" / "uploads"
+### `POST /download`
+Download file by proving knowledge of secret.
+
+**JSON Body:**
+```json
+{
+  "proof": { "pi_a": [...], "pi_b": [...], "pi_c": [...], "protocol": "groth16", "curve": "bn128" },
+  "public": ["<file_id>"]
+}
 ```
-You may want to modify this path dynamically using `__file__` if deploying across systems.
 
-## Files Summary
-| File                   | Purpose                                                             |
-|------------------------|---------------------------------------------------------------------|
-| `poseidon_preimage.circom` | Circuit: prove knowledge of secret s such that Poseidon(s) = h    |
-| `build_zk.sh`            | Automates compiling, setup, and key distribution                   |
-| `witness.wtns`           | Witness generated for specific inputs                              |
-| `proof.json`             | Proof that s is the preimage of h                                  |
-| `public.json`            | Public inputs (contains h)                                         |
-| `verification_key.json`  | For verifying ZK proof                                              |
-| `uploads/<h>.ezra`       | Encrypted file stored by EZRA server                               |
-| `.env`                   | Contains EZRA_MASTER_KEY for AES-GCM encryption                    |
+**Returns:** `{ "ciphertext": "base64..." }`
 
+### `POST /poseidon`
+Helper endpoint to compute Poseidon hash (used by client).
 
-## Coming Soon
-- Enterprise mode with RBAC and optional audit logging
+**JSON Body:**
+```json
+{
+  "secret_b64": "base64-encoded-secret"
+}
+```
 
-- File expiration and one-time download support
+**Returns:** `{ "hash": "decimal_string" }`
 
-- Auto-extract ZIP archives on client
+---
 
-- Client packaging as binary app (Briefcase or PyInstaller)
+## Maintenance Scripts
+
+### Cleanup Expired Files
+
+```bash
+cd server
+python cleanup_expired.py
+```
+
+Set up a cron job to run this periodically:
+
+```bash
+0 * * * * cd /path/to/EZRA/server && python cleanup_expired.py
+```
+
+---
+
+## File Artifacts Summary
+
+| File                       | Purpose                                                     | Location           |
+|----------------------------|-------------------------------------------------------------|--------------------|
+| `poseidon_preimage.circom` | Circuit proving knowledge of Poseidon preimage              | `circuits/`        |
+| `poseidon_preimage.wasm`   | Compiled circuit for browser-based proof generation         | `server/static/`   |
+| `poseidon_preimage.zkey`   | Proving key for client-side ZK proof generation             | `server/static/`   |
+| `verification_key.json`    | Verification key for server-side proof verification         | `artifacts/`       |
+| `<file_id>.ezra`           | Encrypted file blob                                         | `server/uploads/`  |
+| `<file_id>.proof.json`     | ZK proof stored with upload                                 | `server/uploads/`  |
+| `<file_id>.public.json`    | Public signals (commitment/hash)                            | `server/uploads/`  |
+| `expirations.db`           | SQLite database tracking file expiration                    | `server/db/`       |
+
+---
+
+## Security Considerations
+
+- The `.zkey` proving key is public by design (needed for client-side proving)
+- The composite key must be transmitted securely (Signal, encrypted email, etc.)
+- Server verification ensures only users with the correct secret can download
+- File padding and timestomping provide additional metadata privacy
+- One-time download option prevents key reuse
+
+---
+
+## License
+
+MIT License (or specify your license here)
+
+---
+
+## Contributing
+
+Contributions welcome! Please open an issue or PR on GitHub.

@@ -45,5 +45,6 @@ cp "$BUILD_DIR/poseidon_preimage.zkey" server/static/
 echo "Copying backend verification key to artifacts/"
 mkdir -p artifacts
 cp "$BUILD_DIR/verification_key.json" artifacts/
+cp "$BUILD_DIR/poseidon_preimage.zkey" artifacts/
 
 echo "Build complete and distributed to server/"

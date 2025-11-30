@@ -294,7 +294,7 @@ Set up a cron job to run this periodically:
 
 AGPL v3 - see LICENSE file for details
 
-For commercial licensing options (private deployment without AGPL obligations), contact Liam Goss
+For commercial licensing options (private deployment without AGPL obligations), contact Liam Goss at liamjgoss+ezra@gmail.com
 
 ---
 

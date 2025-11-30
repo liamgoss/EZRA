@@ -36,11 +36,14 @@ snarkjs zkey export verificationkey \
   $BUILD_DIR/$CIRCUIT_NAME.zkey \
   $BUILD_DIR/verification_key.json
 
-# 5. Copy artifacts into both server/ and client/
-for TARGET in server/working_dir client/working_dir; do
-  echo "Copying ZK artifacts to $TARGET/"
-  mkdir -p $TARGET
-  cp -r $BUILD_DIR/* $TARGET/
-done
+# 5. Copy artifacts to server/static/ and artifacts/
+echo "Copying frontend artifacts to server/static/"
+mkdir -p server/static
+cp "$BUILD_DIR/poseidon_preimage.wasm" server/static/
+cp "$BUILD_DIR/poseidon_preimage.zkey" server/static/
 
-echo "Build complete and distributed to client/ and server/"
+echo "Copying backend verification key to artifacts/"
+mkdir -p artifacts
+cp "$BUILD_DIR/verification_key.json" artifacts/
+
+echo "Build complete and distributed to server/"

@@ -3,6 +3,8 @@ import os
 import random
 import json
 
+ARTIFACTS_PATH =  os.path.abspath(os.path.join(os.path.dirname( __file__ ), "..", "artifacts"))
+
 def generate_secret(bits=256):
     return random.getrandbits(bits)
 
@@ -36,28 +38,28 @@ def poseidon_hash(secret: int) -> int:
 
 
 def get_commitment(secret: int) -> str:
-    input_dir = "inputs"
-    input_path = os.path.join(input_dir, "input.json")
-    os.makedirs(input_dir, exist_ok=True)
-
+    input_file = os.path.abspath(os.path.join(ARTIFACTS_PATH, "inputs", "input.json"))
+    wasm_file = os.path.abspath(os.path.join(ARTIFACTS_PATH, "poseidon_preimage_js", "poseidon_preimage.wasm"))
+    wtns_file = os.path.abspath(os.path.join(ARTIFACTS_PATH, "witness.wtns"))
+    
     commitment = poseidon_hash(secret)
 
-    with open(input_path, "w") as f:
+    with open(input_file, "w") as f:
         json.dump({ "x": str(secret), "expected": str(commitment) }, f)
 
     subprocess.run([
         "snarkjs", "wtns", "calculate",
-        "working_dir/poseidon_preimage_js/poseidon_preimage.wasm",
-        input_path,
-        "working_dir/witness.wtns"
+        wasm_file,
+        input_file,
+        wtns_file,
     ], check=True)
 
     subprocess.run([
         "snarkjs", "groth16", "prove",
-        "working_dir/poseidon_preimage.zkey",
-        "working_dir/witness.wtns",
-        "working_dir/proof.json",
-        "working_dir/public.json"
+        os.path.join(ARTIFACTS_PATH, "poseidon_preimage.zkey"),
+        os.path.join(ARTIFACTS_PATH, "witness.wtns"),
+        os.path.join(ARTIFACTS_PATH, "proof.json"),
+        os.path.join(ARTIFACTS_PATH, "public.json"),
     ], check=True)
 
     return commitment

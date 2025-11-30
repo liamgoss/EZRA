@@ -2,6 +2,8 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import subprocess
 
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'server'))) 
 from zk_utils import generate_secret, poseidon_hash, get_commitment
 
 import os

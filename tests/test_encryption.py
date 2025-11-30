@@ -1,8 +1,9 @@
-import unittest
+import unittest, sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'server'))) 
 from encryption import encrypt_file, decrypt_file
 
 from dotenv import load_dotenv
-import os
+
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', 'server/', '.env')
 load_dotenv(dotenv_path)
 

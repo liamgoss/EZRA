@@ -2,10 +2,11 @@
 
 import io, os, time
 from zipfile import ZipFile
-from pathlib import Path
+# Although it ruins the consistency of using os.path.* everywhere,
+# pathlib seems best for the following file manipulations compared to os.path
+from pathlib import Path 
 from typing import List
 from encryption import encrypt_file, decrypt_file
-
 
 
 def timestomp(files: List[Path]):
@@ -46,7 +47,6 @@ def pad_file_to_exact_size(path: Path, target_bytes: int = 100):
             f.write(b'\x00' * (target_bytes - current))
     
 
-
 def create_ezra_archive(filepaths: list[Path]) -> bytes:
     """
     Given a list of file paths, create an in-memory ZIP archive containing them.
@@ -55,6 +55,6 @@ def create_ezra_archive(filepaths: list[Path]) -> bytes:
     zip_buffer = io.BytesIO()
     with ZipFile(zip_buffer, 'w') as zipf:
         for path in filepaths:
-            arcname = path.name  # filename remains inside archive, but not leaked in storage
-            zipf.write(path, arcname=arcname)
+            archive_name = path.name  # filename remains inside archive, but not leaked in storage
+            zipf.write(path, arcname=archive_name)
     return zip_buffer.getvalue()

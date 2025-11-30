@@ -2,15 +2,20 @@ import unittest
 import tempfile
 import os
 import json
-import shutil
+import sys
 import subprocess
 from unittest.mock import patch, MagicMock
-from app import app, UPLOAD_FOLDER, delayed_delete
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'server'))) 
+
+from app import app, UPLOAD_DIR, delayed_delete
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from encryption import get_master_key, encrypt_ezrm
 from pathlib import Path
 from dotenv import load_dotenv
 dotenv_path = os.path.join(os.path.dirname(__file__), '..', 'server/', '.env')
+test_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "tmp/"))
+
 load_dotenv(dotenv_path)
 
 class FlaskRouteTests(unittest.TestCase):
@@ -22,28 +27,30 @@ class FlaskRouteTests(unittest.TestCase):
         self.test_file.write(b"Test content for upload")
         self.test_file.close()
 
-        # Create working_dir used by proof system
-        os.makedirs("working_dir", exist_ok=True)
-        with open("working_dir/proof.json", "w") as f:
+        # Create temporary directory used by proof system
+        os.makedirs(test_dir, exist_ok=True)
+        os.path.abspath(os.path.join(test_dir, "proof.json"))
+
+        with open(os.path.abspath(os.path.join(test_dir, "proof.json")), "w") as f:
             json.dump({}, f)
-        with open("working_dir/public.json", "w") as f:
+        with open(os.path.abspath(os.path.join(test_dir, "public.json")), "w") as f:
             json.dump(["test"], f)
-        with open("working_dir/verification_key.json", "w") as f:
+        with open(os.path.abspath(os.path.join(test_dir, "verification_key.json")), "w") as f:
             f.write("dummy key")
         
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     def tearDown(self):
         os.unlink(self.test_file.name)
 
-        if os.path.exists(UPLOAD_FOLDER):
-            for file in os.listdir(UPLOAD_FOLDER):
-                file_path = os.path.join(UPLOAD_FOLDER, file)
+        if os.path.exists(UPLOAD_DIR):
+            for file in os.listdir(UPLOAD_DIR):
+                file_path = os.path.join(UPLOAD_DIR, file)
                 if os.path.basename(file_path) != ".gitkeep":
                     os.unlink(file_path)
 
-        # Remove working_dir completely
-        shutil.rmtree("working_dir", ignore_errors=True)
+        # Remove temporary directory 
+        os.rmdir(test_dir)
 
     @patch("app.encrypt_files_to_ezra")
     @patch("app.generate_secret")
@@ -93,8 +100,8 @@ class FlaskRouteTests(unittest.TestCase):
         mock_subprocess.return_value = None
 
         file_id = "test123"
-        ezra_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezra")
-        ezrm_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrm")
+        ezra_path = os.path.join(UPLOAD_DIR, f"{file_id}.ezra")
+        ezrm_path = os.path.join(UPLOAD_DIR, f"{file_id}.ezrm")
 
         # Simulate encrypted file
         with open(ezra_path, "wb") as f:
@@ -176,12 +183,12 @@ class FlaskRouteTests(unittest.TestCase):
         file_id = "badjson"
 
         # Create required files
-        with open(os.path.join(UPLOAD_FOLDER, f"{file_id}.ezra"), "wb") as f:
+        with open(os.path.join(UPLOAD_DIR, f"{file_id}.ezra"), "wb") as f:
             f.write(b"ciphertext")
-        with open(os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrm"), "wb") as f:
+        with open(os.path.join(UPLOAD_DIR, f"{file_id}.ezrm"), "wb") as f:
             from encryption import encrypt_ezrm
             f.write(encrypt_ezrm(b"n" * 12 + b"k" * 32))
-        with open(os.path.join(UPLOAD_FOLDER, f"{file_id}.ezrd"), "wb") as f:
+        with open(os.path.join(UPLOAD_DIR, f"{file_id}.ezrd"), "wb") as f:
             f.write(b"not a json")
 
         fake_proof = {
@@ -202,11 +209,11 @@ class FlaskRouteTests(unittest.TestCase):
         test_id = "dummyfile"
         # create dummy files
         for ext in ["ezra", "ezrm", "ezrd"]:
-            with open(f"{UPLOAD_FOLDER}/{test_id}.{ext}", "w") as f:
+            with open(f"{UPLOAD_DIR}/{test_id}.{ext}", "w") as f:
                 f.write("dummy")
         delayed_delete(test_id, delay=0)
         for ext in ["ezra", "ezrm", "ezrd"]:
-            self.assertFalse(os.path.exists(f"{UPLOAD_FOLDER}/{test_id}.{ext}"))
+            self.assertFalse(os.path.exists(f"{UPLOAD_DIR}/{test_id}.{ext}"))
     
     def test_delayed_delete_file_missing_error(self):
         # This should trigger the "except Exception as e:" block in delayed_delete

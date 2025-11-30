@@ -6,6 +6,10 @@ wslvenv/
 __pycache__/
 *.pyc
 
+# Writeups stored in project dir for organizational sake but do not upload
+DOCS/
+
+
 # Scripts
 scripts/*
 !scripts/cleanup_expired.py
@@ -42,27 +46,6 @@ node_modules/
 client/ezra/src/ezra/resources/node/bin/
 client/ezra/src/ezra/resources/node/package-lock.json
 client/ezra/src/ezra/resources/node/package.json
-
-# Briefcase outputs
-client/ezra/.briefcase/
-client/ezra/build/
-client/ezra/dist/
-client/ezra/logs/
-client/ezra/*.app/
-client/ezra/*.exe/
-client/ezra/*.dmg/
-client/ezra/*.msi/
-
-# Temp and working files
-client/ezra/src/ezra/tmp/
-client/ezra/src/ezra/working_dir/
-
-# Optional: Skip generated dist-info
-client/ezra/src/ezra/ezra.dist-info/
-
-# Skip top-level client/ unless otherwise specified
-client/__pycache__/
-client/*.py
 
 # Public upload files
 server/uploads/*

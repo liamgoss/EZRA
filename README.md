@@ -86,7 +86,7 @@ chmod +x build_zk.sh && ./build_zk.sh
 This will:
 
 - Compile the Circom circuit
-- Download `pot12_final.ptau` is missing
+- Download `pot12_final.ptau` if missing
 - Generate proving and verification keys
 - Copy the resulting artifacts into both:
   
@@ -99,11 +99,11 @@ These artifacts are required for both uploading and downloading files.
 To manually test ZK proof generation and verification:
 
 ```bash
-python3 server/zk_test.py
+cd server && python3 zk_test.py
 ```
-Expected output:
+Expected output (secret and commitment values may differ from the following):
 ```yaml
-Secret: 391279...
+Secret: 391279... 
 Commitment: 126827...
 Verifier Output: OK!
 ```

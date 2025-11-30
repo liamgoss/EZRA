@@ -3,6 +3,8 @@ import os
 import tempfile
 from pathlib import Path
 from zipfile import ZipFile
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'server'))) 
 from storage import encrypt_files_to_ezra, decrypt_ezra_to_files, pad_file_to_exact_size, timestomp, pad_file_reasonably
 
 from dotenv import load_dotenv

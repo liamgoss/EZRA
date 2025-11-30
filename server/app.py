@@ -9,9 +9,10 @@ from paths import UPLOAD_DIR, DB_DIR, ensure_directories
 
 load_dotenv()
 ensure_directories()
-
 MAX_CONTENT_LENGTH_MB = int(os.getenv("MAX_CONTENT_LENGTH_MB", 275))
 MAX_FILE_COUNT = int(os.getenv("MAX_FILE_COUNT", 5))
+
+ARTIFACTS_PATH = input_file = os.path.abspath(os.path.join(os.path.dirname( __file__ ), "..", "artifacts"))
 
 # Ensure the uploads directory exists
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -207,8 +208,9 @@ def download():
 
     file_id = public[0]
 
-    tmp_proof_path = "working_dir/tmp_proof.json"
-    tmp_public_path = "working_dir/tmp_public.json"
+    
+    tmp_proof_path = os.path.join(ARTIFACTS_PATH, "tmp_proof.json")
+    tmp_public_path = os.path.join(ARTIFACTS_PATH, "tmp_public.json")
 
     try:
         with open(tmp_proof_path, "w") as pf:
@@ -218,7 +220,7 @@ def download():
 
         subprocess.run([
             "snarkjs", "groth16", "verify",
-            "working_dir/verification_key.json",
+            os.path.join(ARTIFACTS_PATH, "verification_key.json" ),
             tmp_public_path,
             tmp_proof_path
         ], check=True)
@@ -269,4 +271,4 @@ if __name__ == "__main__":
         db.execute(schema)
         db.commit()
     print(f"[INIT] Initialized {DB_DIR / 'expirations.db'}")
-    app.run(ssl_context="adhoc", host="0.0.0.0", debug=True, port=5000)
+    app.run(ssl_context="adhoc", host="0.0.0.0", debug=True, port=5001)

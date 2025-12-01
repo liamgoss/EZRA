@@ -9,7 +9,7 @@ This project uses Circom 2.1.6 and snarkjs (Groth16) for client-side Poseidon pr
 ---
 
 ## SECURITY NOTICE / DISCLAIMER
-This project was built with security-focused design principles; however, the zero-knowledge proof system **does not currently implement a Trusted Setup Ceremony**. As a result, the ZKP components should be considered experimental and are not suitable for production or adversarial environments at this stage.
+This project was built with security-focused design principles; however, the zero-knowledge proof system **does not currently implement a Multi-Party Trusted Setup Ceremony**. As a result, the ZKP components should be considered experimental and are not suitable for production or adversarial environments at this stage.
 
 ---
 

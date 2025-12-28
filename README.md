@@ -8,9 +8,12 @@ This project uses Circom 2.1.6 and snarkjs (Groth16) for client-side Poseidon pr
 
 ---
 
-## SECURITY NOTICE / DISCLAIMER
-This project was built with security-focused design principles; however, the zero-knowledge proof system **does not currently implement a Multi-Party Trusted Setup Ceremony**. As a result, the ZKP components should be considered experimental and are not suitable for production or adversarial environments at this stage.
+## SECURITY NOTICE / 
+EZRA’s zero-knowledge proof system relies on a publicly available universal trusted setup (Powers of Tau) generated via a multi-party computation (MPC) ceremony.
+Security of the ZKP components assumes that at least one participant in the ceremony destroyed their secret randomness.
 
+The project **does not conduct its own ceremony** and instead reuses widely trusted, publicly verifiable parameters.
+While this trust model is standard for modern SNARK systems, EZRA’s ZKP integration should still be considered experimental pending further audit, formal verification, and adversarial testing.
 ---
 
 ---
